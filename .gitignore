@@ -1,3 +1,4 @@
+# Dependencies
 node_modules
 
 # Output
@@ -7,10 +8,12 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+/dist
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Env
 .env
@@ -21,3 +24,21 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# TypeScript
+*.tsbuildinfo
+
+# pnpm
+.pnp
+.pnp.js
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# AI tools
+.claude/
+.gemini/
+.opencode/
