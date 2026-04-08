@@ -11,6 +11,7 @@ const SVELTE_PAGES = new Set([
 	'/timers',
 	'/system',
 	'/obs',
+	'/ai',
 ]);
 
 function bypass(req: { url?: string; headers: Record<string, string | string[] | undefined> }) {
@@ -39,7 +40,8 @@ export default defineConfig({
 			'/moderation': { target: 'http://localhost:8000', bypass },
 			'/ping': { target: 'http://localhost:8000' },
 			'/timers': { target: 'http://localhost:8000', changeOrigin: true, bypass },
-			'/system/status': { target: 'http://localhost:8000' },
+			'/ai': { target: 'http://localhost:8000', changeOrigin: true, bypass },
+		'/system/status': { target: 'http://localhost:8000' },
 			'/system/traces': { target: 'http://localhost:8000' },
 			'/system/events': { target: 'http://localhost:8000' },
 		}

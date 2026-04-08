@@ -17,7 +17,8 @@
 		{ href: '/commands', label: 'Commands', icon: '⌨' },
 		{ href: '/moderation', label: 'Moderation', icon: '🛡' },
 		{ href: '/timers', label: 'Timers', icon: '⏱' },
-		{ href: '/system', label: 'System', icon: '⚙' }
+		{ href: '/system', label: 'System', icon: '⚙' },
+		{ href: '/ai', label: 'AI', icon: '✦' }
 	];
 
 	onMount(() => {
