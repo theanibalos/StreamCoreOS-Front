@@ -3,8 +3,26 @@ const BASE = '';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(`${BASE}${path}`, init);
+	
+	// Si la respuesta es JSON, intentamos parsearla incluso si hay error (404, 422, etc.)
+	const contentType = res.headers.get('content-type');
+	if (contentType && contentType.includes('application/json')) {
+		const data = await res.json();
+		
+		// Si es un error de HTTP pero tenemos un cuerpo JSON con información
+		if (!res.ok) {
+			// Prioridad: 1. data.error (nuestro estándar), 2. data.detail (estándar FastAPI)
+			const errMsg = data.error || data.detail || `Error ${res.status}`;
+			throw new Error(errMsg);
+		}
+		
+		return data as T;
+	}
+
+	// Si no es JSON y hay error, lanzamos el genérico
 	if (!res.ok) throw new Error(`HTTP ${res.status} — ${path}`);
-	return res.json() as Promise<T>;
+	
+	return {} as Promise<T>;
 }
 
 export function get<T>(path: string): Promise<T> {

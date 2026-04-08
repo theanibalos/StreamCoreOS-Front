@@ -1,10 +1,12 @@
 <script lang="ts">
 	import CommandsManager from '$lib/components/CommandsManager.svelte';
+	import ChatReminders from '$lib/components/ChatReminders.svelte';
 </script>
 
 <div class="page">
 	<h1>Commands</h1>
 	<CommandsManager />
+	<ChatReminders />
 </div>
 
 <style>

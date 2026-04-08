@@ -1,18 +1,16 @@
 <script lang="ts">
-	import { get } from '$lib/api/client';
+	import { get, post } from '$lib/api/client';
 	import type {
-		ViewerPointsResponse,
-		ViewerPointsData,
-		PointsHistoryResponse,
-		TransactionData
+		ViewerResponse,
+		ViewerData,
+		AdjustPointsResponse
 	} from '$lib/types/api';
 
 	let query = $state('');
-	let viewer = $state<ViewerPointsData | null>(null);
-	let history = $state<TransactionData[]>([]);
-	let showHistory = $state(false);
+	let viewer = $state<ViewerData | null>(null);
 	let loading = $state(false);
-	let historyLoading = $state(false);
+	let adjusting = $state(false);
+	let delta = $state(0);
 	let error = $state<string | null>(null);
 
 	async function lookup() {
@@ -21,35 +19,43 @@
 		loading = true;
 		error = null;
 		viewer = null;
-		history = [];
-		showHistory = false;
 		try {
-			const res = await get<ViewerPointsResponse>(`/loyalty/viewers/${encodeURIComponent(id)}`);
+			const res = await get<ViewerResponse>(`/viewers/${encodeURIComponent(id)}`);
 			if (res.success && res.data) {
 				viewer = res.data;
 			} else {
 				error = res.error ?? 'Viewer not found';
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : String(e);
+			const msg = e instanceof Error ? e.message : String(e);
+			if (msg.includes('404') || msg.toLowerCase().includes('not found')) {
+				error = 'User not found';
+			} else {
+				error = msg;
+			}
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function loadHistory() {
-		if (!viewer) return;
-		historyLoading = true;
+	async function adjustPoints() {
+		if (!viewer || delta === 0) return;
+		adjusting = true;
+		error = null;
 		try {
-			const res = await get<PointsHistoryResponse>(
-				`/loyalty/viewers/${encodeURIComponent(viewer.twitch_id)}/history`
-			);
-			history = res.success && res.data ? res.data : [];
-			showHistory = true;
+			const res = await post<AdjustPointsResponse>(`/viewers/${viewer.twitch_id}/points`, {
+				delta
+			});
+			if (res.success && res.data) {
+				await lookup(); 
+				delta = 0;
+			} else {
+				error = res.error ?? 'Failed to adjust points';
+			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
-			historyLoading = false;
+			adjusting = false;
 		}
 	}
 
@@ -60,9 +66,11 @@
 	}
 
 	function formatDate(iso: string): string {
+		if (!iso) return 'Never';
 		return new Date(iso).toLocaleString(undefined, {
 			month: 'short',
 			day: 'numeric',
+			year: 'numeric',
 			hour: '2-digit',
 			minute: '2-digit'
 		});
@@ -79,13 +87,15 @@
 	</div>
 
 	<div class="search-row">
+		<label for="viewer-search" class="sr-only">Search Viewer</label>
 		<input
+			id="viewer-search"
 			type="text"
 			placeholder="Twitch ID or username…"
 			bind:value={query}
 			onkeydown={onKeydown}
 		/>
-		<button onclick={lookup} disabled={loading || !query.trim()}>
+		<button class="search-btn" onclick={lookup} disabled={loading || !query.trim()}>
 			{loading ? '…' : 'Search'}
 		</button>
 	</div>
@@ -96,8 +106,18 @@
 
 	{#if viewer}
 		<div class="viewer-card">
-			<div class="viewer-name">{viewer.display_name}</div>
-			<div class="viewer-id">ID: {viewer.twitch_id}</div>
+			<div class="card-header">
+				<div>
+					<div class="viewer-name">
+						{viewer.display_name}
+						{#if viewer.is_regular}
+							<span class="badge">REGULAR</span>
+						{/if}
+					</div>
+					<div class="viewer-id">ID: {viewer.twitch_id} | login: {viewer.login}</div>
+				</div>
+			</div>
+
 			<div class="stats">
 				<div class="stat">
 					<span class="label">Current Points</span>
@@ -109,34 +129,27 @@
 				</div>
 			</div>
 
-			{#if !showHistory}
-				<button class="history-btn" onclick={loadHistory} disabled={historyLoading}>
-					{historyLoading ? 'Loading…' : 'Show History'}
-				</button>
-			{/if}
-		</div>
-
-		{#if showHistory}
-			<div class="history">
-				<div class="history-header">
-					<span>Transaction History</span>
-					<button class="small-btn" onclick={() => (showHistory = false)}>Hide</button>
+			<div class="info-grid">
+				<div class="info-item">
+					<span class="label">First Seen</span>
+					<span class="info-value">{formatDate(viewer.first_seen)}</span>
 				</div>
-				{#if history.length === 0}
-					<p class="muted">No transactions found.</p>
-				{:else}
-					<ul>
-						{#each history as tx (tx.id)}
-							<li class="tx" class:positive={tx.amount > 0} class:negative={tx.amount < 0}>
-								<span class="tx-amount">{tx.amount > 0 ? '+' : ''}{fmt(tx.amount)}</span>
-								<span class="tx-reason">{tx.reason}</span>
-								<span class="tx-date">{formatDate(tx.created_at)}</span>
-							</li>
-						{/each}
-					</ul>
-				{/if}
+				<div class="info-item">
+					<span class="label">Last Seen</span>
+					<span class="info-value">{formatDate(viewer.last_seen)}</span>
+				</div>
 			</div>
-		{/if}
+
+			<div class="adjust-points">
+				<label for="delta-input" class="label">Adjust Points</label>
+				<div class="adjust-row">
+					<input id="delta-input" type="number" bind:value={delta} placeholder="Delta (+/-)" />
+					<button onclick={adjustPoints} disabled={adjusting || delta === 0} class:positive={delta > 0} class:negative={delta < 0}>
+						{adjusting ? '…' : 'Apply'}
+					</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -181,7 +194,7 @@
 		border-color: var(--accent, #cba6f7);
 	}
 
-	button {
+	.search-btn {
 		background: var(--accent, #cba6f7);
 		color: #11111b;
 		border: none;
@@ -192,9 +205,21 @@
 		cursor: pointer;
 	}
 
-	button:disabled {
+	.search-btn:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
 	}
 
 	.viewer-card {
@@ -202,6 +227,12 @@
 		border: 1px solid var(--border, #313244);
 		border-radius: 6px;
 		padding: 0.75rem 1rem;
+	}
+
+	.card-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
 		margin-bottom: 0.75rem;
 	}
 
@@ -209,18 +240,32 @@
 		font-size: 1rem;
 		font-weight: 600;
 		color: var(--text, #cdd6f4);
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.badge {
+		font-size: 0.65rem;
+		font-weight: 800;
+		background: var(--blue, #89b4fa);
+		color: #11111b;
+		padding: 0.1rem 0.4rem;
+		border-radius: 4px;
 	}
 
 	.viewer-id {
 		font-size: 0.75rem;
 		color: var(--subtext, #a6adc8);
-		margin-bottom: 0.75rem;
 	}
 
 	.stats {
 		display: flex;
 		gap: 1.5rem;
-		margin-bottom: 0.75rem;
+		margin-bottom: 1rem;
+		padding: 0.75rem;
+		background: rgba(203, 166, 247, 0.04);
+		border-radius: 4px;
 	}
 
 	.stat {
@@ -234,6 +279,8 @@
 		text-transform: uppercase;
 		letter-spacing: 0.07em;
 		color: var(--subtext, #a6adc8);
+		display: block;
+		margin-bottom: 0.2rem;
 	}
 
 	.value {
@@ -246,106 +293,57 @@
 		color: var(--accent, #cba6f7);
 	}
 
-	.history-btn {
-		background: none;
-		border: 1px solid var(--border, #313244);
-		color: var(--subtext, #a6adc8);
-		font-weight: 500;
-		font-size: 0.8rem;
-		padding: 0.3rem 0.7rem;
+	.info-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
 	}
 
-	.history-btn:hover:not(:disabled) {
-		border-color: var(--subtext, #a6adc8);
+	.info-value {
+		font-size: 0.8rem;
 		color: var(--text, #cdd6f4);
 	}
 
-	.history {
-		background: var(--surface2, #181825);
-		border: 1px solid var(--border, #313244);
-		border-radius: 6px;
-		padding: 0.75rem 1rem;
+	.adjust-points {
+		border-top: 1px solid var(--border, #313244);
+		padding-top: 0.75rem;
 	}
 
-	.history-header {
+	.adjust-row {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--subtext, #a6adc8);
-		margin-bottom: 0.5rem;
-	}
-
-	.small-btn {
-		background: none;
-		border: 1px solid var(--border, #313244);
-		color: var(--subtext, #a6adc8);
-		font-size: 0.7rem;
-		font-weight: 500;
-		padding: 0.1rem 0.4rem;
-	}
-
-	ul {
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		max-height: 260px;
-		overflow-y: auto;
-	}
-
-	.tx {
-		display: flex;
-		align-items: baseline;
 		gap: 0.5rem;
-		font-size: 0.825rem;
-		padding: 0.25rem 0;
-		border-bottom: 1px solid var(--border, #313244);
 	}
 
-	.tx:last-child {
-		border-bottom: none;
+	.adjust-row input {
+		width: 100px;
+		flex: none;
 	}
 
-	.tx-amount {
-		font-weight: 700;
-		width: 3.5rem;
-		flex-shrink: 0;
+	.adjust-row button {
+		flex: 1;
+		background: var(--surface, #1e1e2e);
+		border: 1px solid var(--border, #313244);
+		color: var(--text, #cdd6f4);
+		border-radius: 4px;
+		font-weight: 600;
+		cursor: pointer;
+		font-size: 0.8rem;
 	}
 
-	.tx.positive .tx-amount {
+	.adjust-row button.positive {
+		border-color: var(--green, #a6e3a1);
 		color: var(--green, #a6e3a1);
 	}
 
-	.tx.negative .tx-amount {
+	.adjust-row button.negative {
+		border-color: var(--red, #f38ba8);
 		color: var(--red, #f38ba8);
-	}
-
-	.tx-reason {
-		flex: 1;
-		color: var(--text, #cdd6f4);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.tx-date {
-		color: var(--subtext, #a6adc8);
-		font-size: 0.7rem;
-		flex-shrink: 0;
 	}
 
 	.err {
 		color: var(--red, #f38ba8);
 		font-size: 0.875rem;
 		margin-bottom: 0.5rem;
-	}
-
-	.muted {
-		color: var(--subtext, #a6adc8);
-		font-size: 0.875rem;
 	}
 </style>

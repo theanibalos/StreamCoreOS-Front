@@ -53,6 +53,7 @@ export interface DashboardStatsData {
 	stream: StreamInfo;
 	top_viewers: TopViewer[];
 	recent_mod_actions: RecentModAction[];
+	total_viewers: number;
 }
 
 export interface StatsSnapshot {
@@ -73,78 +74,117 @@ export interface SseMessage {
 }
 
 // ─── Chat commands ───────────────────────────────────────────────────────────
+export type UserLevel = 'everyone' | 'subscriber' | 'vip' | 'regular' | 'moderator' | 'broadcaster';
+
 export interface CommandData {
 	id: number;
 	name: string;
 	response: string;
 	cooldown_s: number;
 	enabled: boolean;
+	userlevel: UserLevel;
+	global_cooldown_s: number;
+	use_count: number;
 }
 
 export interface CreateCommandRequest {
 	name: string; // pattern: ^![a-z0-9_]+$, 2–50 chars
 	response: string; // 1–500 chars
 	cooldown_s?: number; // 0–3600
+	userlevel?: UserLevel;
+	global_cooldown_s?: number;
 }
 
 export interface UpdateCommandRequest {
 	response?: string | null;
 	cooldown_s?: number | null;
 	enabled?: boolean | null;
+	userlevel?: UserLevel | null;
+	global_cooldown_s?: number | null;
 }
 
 export type ListCommandsResponse = ApiResponse<CommandData[]>;
 export type CreateCommandResponse = ApiResponse<CommandData>;
 export type UpdateCommandResponse = ApiResponse<CommandData>;
-export type DeleteCommandResponse = ApiResponse<Record<string, unknown>>;
+export type DeleteCommandResponse = ApiResponse<Record<string, unknown> | null>;
 
-// ─── Loyalty ─────────────────────────────────────────────────────────────────
-export interface LeaderboardEntry {
+// ─── Viewers ─────────────────────────────────────────────────────────────────
+export interface ViewerData {
+	id: number;
+	twitch_id: string;
+	login: string;
+	display_name: string;
+	points: number;
+	total_earned: number;
+	is_regular: boolean;
+	first_seen: string;
+	last_seen: string;
+}
+
+export interface ViewerLeaderboardEntry {
 	rank: number;
 	twitch_id: string;
 	display_name: string;
 	points: number;
 	total_earned: number;
+	is_regular: boolean;
 }
 
-export interface ViewerPointsData {
+export interface RegularData {
+	twitch_id: string;
+	login: string;
+	display_name: string;
+}
+
+export interface RegularEntry {
+	twitch_id: string;
+	login: string;
+	display_name: string;
+	points: number;
+	first_seen: string;
+}
+
+export interface AddRegularRequest {
+	twitch_id: string;
+	login: string;
+	display_name: string;
+}
+
+export interface AdjustPointsRequest {
+	delta: number;
+}
+
+export type LeaderboardResponse = ApiResponse<ViewerLeaderboardEntry[]>;
+export type ViewerResponse = ApiResponse<ViewerData>;
+export type ListRegularsResponse = ApiResponse<RegularEntry[]>;
+export type AddRegularResponse = ApiResponse<RegularData>;
+export type RegularResponse = AddRegularResponse; // Keep alias for backward compatibility
+export type AdjustPointsResponse = ApiResponse<{
 	twitch_id: string;
 	display_name: string;
 	points: number;
 	total_earned: number;
+}>; 
+export type RemoveRegularResponse = ApiResponse<null>;
+
+// ─── Chat Reminders & Vars ───────────────────────────────────────────────────
+export interface ReminderData {
+	job_id: string;
+	message: string;
+	run_at: string;
+	scheduled_by: string;
+	channel: string;
 }
 
-export interface TransactionData {
-	id: number;
-	amount: number;
-	reason: string;
-	created_at: string;
-}
-
-export interface RewardData {
+export interface ChatVarData {
 	id: number;
 	name: string;
-	description: string | null;
-	cost: number;
+	value: string;
+	enabled: boolean;
 }
 
-export interface CreateRewardRequest {
-	name: string;
-	description?: string | null;
-	cost: number;
-}
-
-export interface RedeemRequest {
-	twitch_id: string;
-	reward_id: number;
-}
-
-export type LeaderboardResponse = ApiResponse<LeaderboardEntry[]>;
-export type ViewerPointsResponse = ApiResponse<ViewerPointsData>;
-export type PointsHistoryResponse = ApiResponse<TransactionData[]>;
-export type ListRewardsResponse = ApiResponse<RewardData[]>;
-export type CreateRewardResponse = ApiResponse<RewardData>;
-export type RedeemResponse = ApiResponse<Record<string, unknown>>;
+export type ListRemindersResponse = ApiResponse<ReminderData[]>;
+export type ListChatVarsResponse = ApiResponse<ChatVarData[]>;
 
 // ─── Moderation ───────────────────────────────────────────────────────────────
 export interface ModRuleData {

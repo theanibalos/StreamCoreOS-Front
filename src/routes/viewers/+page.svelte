@@ -1,13 +1,15 @@
 <script lang="ts">
-	import LoyaltyLeaderboard from '$lib/components/LoyaltyLeaderboard.svelte';
+	import ViewersLeaderboard from '$lib/components/ViewersLeaderboard.svelte';
 	import ViewerLookup from '$lib/components/ViewerLookup.svelte';
+	import RegularsManager from '$lib/components/RegularsManager.svelte';
 </script>
 
 <div class="page">
-	<h1>Loyalty</h1>
+	<h1>Viewers</h1>
 	<div class="grid">
-		<LoyaltyLeaderboard />
+		<ViewersLeaderboard />
 		<ViewerLookup />
+		<RegularsManager />
 	</div>
 </div>
 

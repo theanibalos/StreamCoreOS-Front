@@ -11,7 +11,7 @@
 		loading = true;
 		error = null;
 		try {
-			const res = await get<LeaderboardResponse>('/loyalty/leaderboard?limit=20');
+			const res = await get<LeaderboardResponse>('/viewers/leaderboard');
 			entries = res.success && res.data ? res.data : [];
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
@@ -62,7 +62,12 @@
 				{#each entries as entry (entry.twitch_id)}
 					<tr>
 						<td class="rank">{medal(entry.rank)}</td>
-						<td class="name">{entry.display_name}</td>
+						<td class="name">
+							{entry.display_name}
+							{#if entry.is_regular}
+								<span class="badge">REG</span>
+							{/if}
+						</td>
 						<td class="right points">{fmt(entry.points)}</td>
 						<td class="right muted">{fmt(entry.total_earned)}</td>
 					</tr>
@@ -112,11 +117,6 @@
 		border-color: var(--subtext, #a6adc8);
 	}
 
-	.refresh:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
 	table {
 		width: 100%;
 		border-collapse: collapse;
@@ -156,6 +156,18 @@
 
 	.name {
 		font-weight: 500;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.badge {
+		font-size: 0.6rem;
+		font-weight: 800;
+		background: var(--blue, #89b4fa);
+		color: #11111b;
+		padding: 0.05rem 0.3rem;
+		border-radius: 3px;
 	}
 
 	.points {
