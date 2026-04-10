@@ -8,6 +8,10 @@
 		endpoint_url: string;
 		model: string;
 		has_api_key: boolean;
+		disable_reasoning: boolean;
+		timeout_s: number;
+		extra_headers: Record<string, string>;
+		extra_payload: Record<string, unknown>;
 		updated_at: string | null;
 	}
 
@@ -29,6 +33,11 @@
 			label: 'Google Gemini',
 			endpoint_url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
 			model_placeholder: 'gemini-2.0-flash'
+		},
+		openrouter: {
+			label: 'OpenRouter',
+			endpoint_url: 'https://openrouter.ai/api/v1/chat/completions',
+			model_placeholder: 'nvidia/llama-3.1-nemotron-ultra-253b-v1:free'
 		},
 		groq: {
 			label: 'Groq',
@@ -60,20 +69,51 @@
 	// ── State ────────────────────────────────────────────────────────────────
 	type TestStatus = 'idle' | 'testing' | 'ok' | 'fail';
 
-	let loading = $state(true);
-	let saving = $state(false);
-	let error = $state<string | null>(null);
-	let testStatus = $state<TestStatus>('idle');
-	let testMsg = $state<string | null>(null);
+	let loading           = $state(true);
+	let saving            = $state(false);
+	let error             = $state<string | null>(null);
+	let testStatus        = $state<TestStatus>('idle');
+	let testMsg           = $state<string | null>(null);
 
-	let provider = $state('openai');
-	let endpoint_url = $state(PRESETS.openai.endpoint_url);
-	let api_key = $state('');
-	let model = $state('');
-	let has_api_key = $state(false);
+	let provider          = $state('openai');
+	let endpoint_url      = $state(PRESETS.openai.endpoint_url);
+	let api_key           = $state('');
+	let model             = $state('');
+	let has_api_key       = $state(false);
+	let disable_reasoning = $state(false);
+	let timeout_s         = $state(120);
 
-	let modelPlaceholder = $derived(PRESETS[provider]?.model_placeholder ?? 'model-name');
-	let isConfigured = $derived(Boolean(endpoint_url.trim() && model.trim()));
+	// JSON fields stored as raw strings for textarea editing
+	let extra_payload_raw = $state('{}');
+	let extra_headers_raw = $state('{}');
+	let extra_payload_err = $state<string | null>(null);
+	let extra_headers_err = $state<string | null>(null);
+
+	let modelPlaceholder  = $derived(PRESETS[provider]?.model_placeholder ?? 'model-name');
+	let isConfigured      = $derived(Boolean(endpoint_url.trim() && model.trim()));
+	let isLocalProvider   = $derived(['ollama', 'lmstudio', 'llamacpp'].includes(provider));
+
+	// ── JSON field helpers ────────────────────────────────────────────────────
+	function validateJson(raw: string): { ok: boolean; parsed: Record<string, unknown> | null; err: string | null } {
+		const trimmed = raw.trim();
+		if (!trimmed || trimmed === '{}') return { ok: true, parsed: {}, err: null };
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null)
+				return { ok: false, parsed: null, err: 'Must be a JSON object: { "key": "value" }' };
+			return { ok: true, parsed, err: null };
+		} catch (e) {
+			return { ok: false, parsed: null, err: `Invalid JSON: ${(e as Error).message}` };
+		}
+	}
+
+	function onPayloadChange() {
+		extra_payload_err = validateJson(extra_payload_raw).err;
+	}
+
+	function onHeadersChange() {
+		extra_headers_err = validateJson(extra_headers_raw).err;
+	}
 
 	// ── Load ─────────────────────────────────────────────────────────────────
 	async function load() {
@@ -82,10 +122,14 @@
 		try {
 			const res = await get<GetAIConfigResponse>('/ai/config');
 			if (res.success && res.data) {
-				provider = res.data.provider;
-				endpoint_url = res.data.endpoint_url;
-				model = res.data.model;
-				has_api_key = res.data.has_api_key;
+				provider          = res.data.provider;
+				endpoint_url      = res.data.endpoint_url;
+				model             = res.data.model;
+				has_api_key       = res.data.has_api_key;
+				disable_reasoning = res.data.disable_reasoning ?? false;
+				timeout_s         = res.data.timeout_s ?? 120;
+				extra_payload_raw = JSON.stringify(res.data.extra_payload ?? {}, null, 2);
+				extra_headers_raw = JSON.stringify(res.data.extra_headers ?? {}, null, 2);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
@@ -98,7 +142,7 @@
 
 	// ── Preset selection ─────────────────────────────────────────────────────
 	function selectPreset(key: string) {
-		provider = key;
+		provider     = key;
 		endpoint_url = PRESETS[key].endpoint_url;
 	}
 
@@ -108,20 +152,31 @@
 			error = 'Endpoint URL and model are required.';
 			return;
 		}
-		saving = true;
-		error = null;
+
+		const payloadResult = validateJson(extra_payload_raw);
+		const headersResult = validateJson(extra_headers_raw);
+		extra_payload_err = payloadResult.err;
+		extra_headers_err = headersResult.err;
+		if (!payloadResult.ok || !headersResult.ok) return;
+
+		saving    = true;
+		error     = null;
 		testStatus = 'idle';
-		testMsg = null;
+		testMsg    = null;
 		try {
 			const res = await put<SaveAIConfigResponse>('/ai/config', {
 				provider,
-				endpoint_url: endpoint_url.trim(),
-				api_key: api_key,
-				model: model.trim(),
+				endpoint_url:      endpoint_url.trim(),
+				api_key:           api_key,
+				model:             model.trim(),
+				disable_reasoning,
+				timeout_s,
+				extra_payload:     payloadResult.parsed ?? {},
+				extra_headers:     headersResult.parsed ?? {},
 			});
 			if (res.success) {
 				has_api_key = Boolean(api_key) || has_api_key;
-				api_key = '';
+				api_key     = '';
 				await testConnection();
 			} else {
 				error = res.error ?? 'Failed to save.';
@@ -135,19 +190,19 @@
 
 	async function testConnection() {
 		testStatus = 'testing';
-		testMsg = null;
+		testMsg    = null;
 		try {
 			const res = await post<ApiResponse<{ latency_ms: number; response: string }>>('/ai/test', {});
 			if (res.success && res.data) {
 				testStatus = 'ok';
-				testMsg = `Connected · ${res.data.latency_ms}ms`;
+				testMsg    = `Connected · ${res.data.latency_ms}ms`;
 			} else {
 				testStatus = 'fail';
-				testMsg = res.error ?? 'Connection failed.';
+				testMsg    = res.error ?? 'Connection failed.';
 			}
 		} catch (e) {
 			testStatus = 'fail';
-			testMsg = e instanceof Error ? e.message : 'Connection failed.';
+			testMsg    = e instanceof Error ? e.message : 'Connection failed.';
 		}
 	}
 </script>
@@ -169,7 +224,12 @@
 			<p class="err">{error}</p>
 		{/if}
 		{#if testStatus !== 'idle'}
-			<p class="test-result" class:ok={testStatus === 'ok'} class:fail={testStatus === 'fail'} class:testing={testStatus === 'testing'}>
+			<p
+				class="test-result"
+				class:ok={testStatus === 'ok'}
+				class:fail={testStatus === 'fail'}
+				class:testing={testStatus === 'testing'}
+			>
 				{#if testStatus === 'testing'}⏳ Testing connection…
 				{:else if testStatus === 'ok'}✓ {testMsg}
 				{:else}✗ {testMsg}
@@ -202,16 +262,14 @@
 				bind:value={endpoint_url}
 				placeholder="https://api.openai.com/v1/chat/completions"
 			/>
-			<span class="hint">The full chat completions URL for your provider.</span>
+			<span class="hint">Full chat completions URL for your provider.</span>
 		</div>
 
 		<!-- API Key -->
 		<div class="field">
 			<label for="apikey">
 				API Key
-				{#if has_api_key}
-					<span class="saved-badge">saved</span>
-				{/if}
+				{#if has_api_key}<span class="saved-badge">saved</span>{/if}
 			</label>
 			<input
 				id="apikey"
@@ -220,7 +278,7 @@
 				placeholder={has_api_key ? '••••••••  (leave blank to keep current)' : 'sk-...'}
 				autocomplete="off"
 			/>
-			<span class="hint">Stored locally on your machine. Leave blank to keep the current key.</span>
+			<span class="hint">Stored locally. Leave blank to keep the current key.</span>
 		</div>
 
 		<!-- Model -->
@@ -232,6 +290,84 @@
 				bind:value={model}
 				placeholder={modelPlaceholder}
 			/>
+		</div>
+
+		<!-- ── Advanced ───────────────────────────────────────────────────── -->
+		<div class="section-divider">Advanced</div>
+
+		<!-- Timeout -->
+		<div class="field field-inline">
+			<label for="timeout">Timeout</label>
+			<div class="input-unit">
+				<input
+					id="timeout"
+					type="number"
+					min="5"
+					max="600"
+					bind:value={timeout_s}
+				/>
+				<span class="unit">s</span>
+			</div>
+			<span class="hint">Request timeout in seconds (5–600). Increase for slow local models.</span>
+		</div>
+
+		<!-- Extra payload -->
+		<div class="field">
+			<label for="extra-payload">Extra Payload Fields</label>
+			<textarea
+				id="extra-payload"
+				rows="3"
+				bind:value={extra_payload_raw}
+				oninput={onPayloadChange}
+				placeholder={'{"num_ctx": 8192}'}
+				spellcheck="false"
+			></textarea>
+			{#if extra_payload_err}
+				<span class="field-err">{extra_payload_err}</span>
+			{:else}
+				<span class="hint">
+					JSON object merged into the request body.
+					{#if isLocalProvider}
+						Useful for <code>num_ctx</code> (Ollama context size), <code>num_predict</code> (llama.cpp token limit).
+					{:else}
+						Use for provider-specific fields not covered above.
+					{/if}
+				</span>
+			{/if}
+		</div>
+
+		<!-- Extra headers -->
+		<div class="field">
+			<label for="extra-headers">Extra HTTP Headers</label>
+			<textarea
+				id="extra-headers"
+				rows="3"
+				bind:value={extra_headers_raw}
+				oninput={onHeadersChange}
+				placeholder={'{"X-Custom-Header": "value"}'}
+				spellcheck="false"
+			></textarea>
+			{#if extra_headers_err}
+				<span class="field-err">{extra_headers_err}</span>
+			{:else}
+				<span class="hint">JSON object of additional HTTP headers. Useful for proxies or custom auth schemes.</span>
+			{/if}
+		</div>
+
+		<!-- Disable reasoning -->
+		<div class="field toggle-field">
+			<label class="toggle-label" for="disable-reasoning">
+				<input
+					id="disable-reasoning"
+					type="checkbox"
+					bind:checked={disable_reasoning}
+				/>
+				Deshabilitar razonamiento
+			</label>
+			<span class="hint">
+				Desactiva el pensamiento interno del modelo (reasoning).
+				Actualmente solo aplica a OpenRouter — en proveedores locales no tiene efecto.
+			</span>
 		</div>
 
 		<div class="btn-row">
@@ -277,11 +413,58 @@
 		color: var(--green);
 	}
 
+	.section-divider {
+		font-size: 0.68rem;
+		font-weight: 600;
+		color: var(--subtext);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		border-top: 1px solid var(--border);
+		padding-top: 0.75rem;
+		margin-bottom: 0.75rem;
+		margin-top: 0.25rem;
+	}
+
 	.field {
 		display: flex;
 		flex-direction: column;
 		gap: 0.35rem;
 		margin-bottom: 1rem;
+	}
+
+	.field-inline {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		grid-template-rows: auto auto;
+		column-gap: 0.75rem;
+		align-items: center;
+	}
+
+	.field-inline label {
+		grid-row: 1;
+		grid-column: 1 / -1;
+	}
+
+	.field-inline .input-unit {
+		grid-row: 2;
+		grid-column: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.field-inline .hint {
+		grid-row: 3;
+		grid-column: 1 / -1;
+	}
+
+	.input-unit input[type='number'] {
+		width: 5rem;
+	}
+
+	.unit {
+		font-size: 0.78rem;
+		color: var(--subtext);
 	}
 
 	label, .field-label {
@@ -306,7 +489,8 @@
 	}
 
 	input[type='text'],
-	input[type='password'] {
+	input[type='password'],
+	input[type='number'] {
 		background: var(--surface2);
 		border: 1px solid var(--border);
 		border-radius: 4px;
@@ -321,9 +505,40 @@
 		border-color: var(--accent);
 	}
 
+	textarea {
+		background: var(--surface2);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		color: var(--text);
+		padding: 0.4rem 0.6rem;
+		font-size: 0.8rem;
+		font-family: monospace;
+		outline: none;
+		width: 100%;
+		resize: vertical;
+		line-height: 1.5;
+	}
+
+	textarea:focus {
+		border-color: var(--accent);
+	}
+
 	.hint {
 		font-size: 0.7rem;
 		color: var(--subtext);
+	}
+
+	.hint code {
+		font-family: monospace;
+		background: var(--surface2);
+		padding: 0.05rem 0.3rem;
+		border-radius: 3px;
+		font-size: 0.75rem;
+	}
+
+	.field-err {
+		font-size: 0.72rem;
+		color: var(--red);
 	}
 
 	.presets {
@@ -432,5 +647,27 @@
 	.muted {
 		color: var(--subtext);
 		font-size: 0.85rem;
+	}
+
+	.toggle-field {
+		margin-bottom: 1rem;
+	}
+
+	.toggle-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		color: var(--text);
+		cursor: pointer;
+		text-transform: none;
+		letter-spacing: 0;
+	}
+
+	.toggle-label input[type='checkbox'] {
+		accent-color: var(--accent);
+		width: 1rem;
+		height: 1rem;
+		cursor: pointer;
 	}
 </style>
