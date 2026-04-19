@@ -17,6 +17,7 @@
 		{ href: '/commands', label: 'Commands', icon: '⌨' },
 		{ href: '/moderation', label: 'Moderation', icon: '🛡' },
 		{ href: '/timers', label: 'Timers', icon: '⏱' },
+		{ href: '/tts', label: 'TTS', icon: '🔊' },
 		{ href: '/system', label: 'System', icon: '⚙' },
 		{ href: '/ai', label: 'AI', icon: '✦' }
 	];
