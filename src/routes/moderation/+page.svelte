@@ -1,46 +1,25 @@
 <script lang="ts">
-	import ModerationRules from '$lib/components/ModerationRules.svelte';
-	import ModLog from '$lib/components/ModLog.svelte';
-	import ManualActions from '$lib/components/ManualActions.svelte';
+	import { ModerationRules } from '$lib/features/moderation';
+	import { ModLog } from '$lib/features/moderation';
+	import { ManualActions } from '$lib/features/dashboard';
 </script>
 
-<div class="page">
-	<h1>Moderation</h1>
-	<div class="grid">
-		<div class="col-main">
-			<ModerationRules />
-		</div>
-		<div class="col-side">
-			<ManualActions />
-			<ModLog />
+<div class="flex flex-col gap-8 w-full max-w-[1600px] mx-auto">
+	<div class="flex flex-col gap-1">
+		<h1 class="text-3xl font-bold tracking-tight">Moderación</h1>
+		<p class="text-muted-foreground">Control total sobre el chat: filtros automáticos, acciones manuales y registros.</p>
+	</div>
+
+	<div class="flex flex-col gap-8">
+		<ModerationRules />
+		
+		<div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
+			<div class="xl:col-span-2">
+				<ManualActions />
+			</div>
+			<div class="xl:col-span-3">
+				<ModLog />
+			</div>
 		</div>
 	</div>
 </div>
-
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-
-	.grid {
-		display: grid;
-		grid-template-columns: 1fr 340px;
-		gap: 1rem;
-		align-items: start;
-	}
-
-	.col-side {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	@media (max-width: 900px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>

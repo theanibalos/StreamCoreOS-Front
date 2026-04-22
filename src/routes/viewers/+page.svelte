@@ -1,30 +1,18 @@
 <script lang="ts">
-	import ViewersLeaderboard from '$lib/components/ViewersLeaderboard.svelte';
-	import ViewerLookup from '$lib/components/ViewerLookup.svelte';
-	import RegularsManager from '$lib/components/RegularsManager.svelte';
+	import { ViewersLeaderboard, ViewerLookup } from '$lib/features/viewers';
 </script>
 
-<div class="page">
-	<h1>Viewers</h1>
-	<div class="grid">
-		<ViewersLeaderboard />
-		<ViewerLookup />
-		<RegularsManager />
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-3xl font-bold tracking-tight">Viewers</h1>
+		<p class="text-muted-foreground mt-1">Gestiona y visualiza a los espectadores de tu comunidad.</p>
+	</div>
+	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+		<div class="lg:col-span-4">
+			<ViewersLeaderboard />
+		</div>
+		<div class="lg:col-span-3 flex flex-col gap-6">
+			<ViewerLookup />
+		</div>
 	</div>
 </div>
-
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-		gap: 1rem;
-		align-items: start;
-	}
-</style>

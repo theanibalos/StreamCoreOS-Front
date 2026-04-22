@@ -1,4 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 // SvelteKit page routes — browser navigations to these must NOT be proxied
@@ -31,7 +32,7 @@ function bypass(req: { url?: string; headers: Record<string, string | string[] |
 }
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		proxy: {
 			'/auth': { target: 'http://localhost:8000', bypass },

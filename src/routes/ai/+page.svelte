@@ -1,31 +1,31 @@
 <script lang="ts">
-	import AIProviderConfig from '$lib/components/AIProviderConfig.svelte';
-	// Each AI feature is a separate component — remove the import to disable the feature.
-	import AIModerationConfig from '$lib/components/AIModerationConfig.svelte';
-	import AIChatConfig from '$lib/components/AIChatConfig.svelte';
+	import { AIProviderConfig, AIChatConfig, AIModerationConfig } from '$lib/features/ai';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 </script>
 
-<div class="page">
-	<h1>Artificial Intelligence</h1>
-	<div class="layout">
-		<AIProviderConfig />
-		<AIChatConfig />
-		<AIModerationConfig />
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-3xl font-bold tracking-tight">Inteligencia Artificial</h1>
+		<p class="text-muted-foreground mt-1">Configura los proveedores de IA y el comportamiento del chatbot.</p>
 	</div>
+
+	<Tabs value="providers" class="w-full">
+		<TabsList class="grid w-full max-w-2xl grid-cols-3 mb-6">
+			<TabsTrigger value="providers">Proveedores</TabsTrigger>
+			<TabsTrigger value="chat">Chatbot</TabsTrigger>
+			<TabsTrigger value="moderation">Moderación IA</TabsTrigger>
+		</TabsList>
+		
+		<TabsContent value="providers">
+			<AIProviderConfig />
+		</TabsContent>
+		
+		<TabsContent value="chat">
+			<AIChatConfig />
+		</TabsContent>
+
+		<TabsContent value="moderation">
+			<AIModerationConfig />
+		</TabsContent>
+	</Tabs>
 </div>
-
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-
-	.layout {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		max-width: 640px;
-	}
-</style>

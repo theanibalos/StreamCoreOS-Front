@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { get } from '$lib/api/client';
-	import { checkAuth } from '$lib/stores/auth.svelte';
+	import { get } from '$lib/core/api/client';
+	import { checkAuth } from '$lib/core/stores/auth.svelte';
 	import type { OAuthCallbackResponse } from '$lib/types/api';
 
 	let error = $state<string | null>(null);

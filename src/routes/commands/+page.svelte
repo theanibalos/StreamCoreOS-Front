@@ -1,19 +1,16 @@
 <script lang="ts">
-	import CommandsManager from '$lib/components/CommandsManager.svelte';
-	import ChatReminders from '$lib/components/ChatReminders.svelte';
+	import { CommandsManager } from '$lib/features/commands';
+	import { ChatReminders } from '$lib/features/chat';
 </script>
 
-<div class="page">
-	<h1>Commands</h1>
-	<CommandsManager />
-	<ChatReminders />
-</div>
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-3xl font-bold tracking-tight">Comandos</h1>
+		<p class="text-muted-foreground mt-1">Crea, edita y gestiona comandos personalizados y recordatorios.</p>
+	</div>
 
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-</style>
+	<div class="flex flex-col gap-6">
+		<CommandsManager />
+		<ChatReminders />
+	</div>
+</div>

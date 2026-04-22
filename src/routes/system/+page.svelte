@@ -1,34 +1,14 @@
 <script lang="ts">
-	import SystemHealth from '$lib/components/SystemHealth.svelte';
-	import SystemGraph from '$lib/SystemGraph.svelte';
+	import { SystemHealth, SystemGraph } from '$lib/features/system';
 </script>
 
-<div class="page">
-	<h1>System</h1>
-	
-	<div class="grid">
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-3xl font-bold tracking-tight">Estado del Sistema</h1>
+		<p class="text-muted-foreground mt-1">Monitor de salud, recursos y grafo de dependencias del microkernel.</p>
+	</div>
+	<div class="grid gap-6">
 		<SystemHealth />
 		<SystemGraph />
 	</div>
 </div>
-
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-
-	.grid {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		max-width: 900px;
-	}
-
-	.page :global(.system-health),
-	.page :global(.graph-container) {
-		width: 100%;
-	}
-</style>

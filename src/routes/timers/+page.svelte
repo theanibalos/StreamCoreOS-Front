@@ -1,17 +1,13 @@
 <script lang="ts">
-	import TimersManager from '$lib/components/TimersManager.svelte';
+	import { TimersManager } from '$lib/features/timers';
 </script>
 
-<div class="page">
-	<h1>Timers</h1>
-	<TimersManager />
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-3xl font-bold tracking-tight">Temporizadores</h1>
+		<p class="text-muted-foreground mt-1">Configura mensajes automáticos basados en tiempo o cantidad de mensajes en el chat.</p>
+	</div>
+	<div class="grid gap-6">
+		<TimersManager />
+	</div>
 </div>
-
-<style>
-	.page h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-</style>

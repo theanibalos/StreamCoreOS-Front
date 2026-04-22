@@ -1,28 +1,15 @@
 <script lang="ts">
-	import StreamStatus from '$lib/components/StreamStatus.svelte';
-	import AlertFeed from '$lib/components/AlertFeed.svelte';
+	import { StreamStatus } from '$lib/features/dashboard';
+	import { AlertFeed } from '$lib/features/chat';
 </script>
 
-<div class="dashboard">
-	<h1>Dashboard</h1>
-	<div class="grid">
+<div class="flex flex-col gap-6 w-full">
+	<div>
+		<h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
+		<p class="text-muted-foreground">Bienvenido al panel de control de tu stream.</p>
+	</div>
+	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
 		<StreamStatus />
 		<AlertFeed />
 	</div>
 </div>
-
-<style>
-	.dashboard h1 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--text);
-		margin-bottom: 1.25rem;
-	}
-
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-		gap: 1rem;
-		align-items: start;
-	}
-</style>
