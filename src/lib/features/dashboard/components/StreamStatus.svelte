@@ -35,7 +35,7 @@
 			<div class="flex flex-col gap-6">
 				<div class="flex items-center gap-3">
 					<Badge variant={stream.online ? 'default' : 'secondary'} class={stream.online ? 'bg-green-500 hover:bg-green-600 text-white' : ''}>
-						{stream.online ? '● LIVE' : '○ OFFLINE'}
+						{stream.online ? '● EN VIVO' : '○ DESCONECTADO'}
 					</Badge>
 					{#if stream.broadcaster_login}
 						<span class="text-sm font-medium text-muted-foreground">{stream.broadcaster_login}</span>
@@ -45,20 +45,20 @@
 				<div class="flex flex-wrap gap-8">
 					<div class="flex flex-col gap-1">
 						<span class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-							<Users class="h-3.5 w-3.5" /> Viewers
+							<Users class="h-3.5 w-3.5" /> Espectadores
 						</span>
 						<span class="text-2xl font-bold">{fmt(stream.viewer_count)}</span>
 					</div>
 					<div class="flex flex-col gap-1">
 						<span class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-							<UserPlus class="h-3.5 w-3.5" /> Followers
+							<UserPlus class="h-3.5 w-3.5" /> Seguidores
 						</span>
 						<span class="text-2xl font-bold">{fmt(stream.follower_count)}</span>
 					</div>
 					{#if stream.online && stream.started_at}
 						<div class="flex flex-col gap-1">
 							<span class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								<Clock class="h-3.5 w-3.5" /> Uptime
+								<Clock class="h-3.5 w-3.5" /> Tiempo en vivo
 							</span>
 							<span class="text-2xl font-bold">{formatDuration(stream.started_at)}</span>
 						</div>

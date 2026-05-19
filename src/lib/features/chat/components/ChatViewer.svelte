@@ -73,7 +73,7 @@
 	<CardHeader class="pb-3 border-b flex-none">
 		<div class="flex items-center justify-between">
 			<CardTitle class="text-lg font-bold uppercase tracking-wide flex items-center gap-2">
-				<MessageSquare class="w-5 h-5" /> Live Chat
+				<MessageSquare class="w-5 h-5" /> Chat en Vivo
 			</CardTitle>
 			<div class="flex items-center gap-4">
 				{#if !pinned}

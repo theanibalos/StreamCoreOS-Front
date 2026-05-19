@@ -15,18 +15,28 @@ const SVELTE_PAGES = new Set([
 	'/ai',
 	'/tts',
 	'/tts/overlay',
+	'/settings',
+	'/subscribers',
+	'/overlays',
 ]);
+
+// Sub-paths under proxied routes that are SvelteKit pages (prefix match)
+const SVELTE_PREFIXES = [
+	'/overlays/live/',
+	'/overlays/builder/',
+	'/overlays/alerts',
+	'/overlays/chat',
+	'/overlays/tts',
+];
 
 function bypass(req: { url?: string; headers: Record<string, string | string[] | undefined> }) {
 	const url = req.url ?? '';
+	const path = url.split('?')[0];
 	const accept = req.headers['accept'] ?? '';
 	// Let browser page navigations through to SvelteKit
-	if (
-		typeof accept === 'string' &&
-		accept.includes('text/html') &&
-		SVELTE_PAGES.has(url.split('?')[0])
-	) {
-		return url;
+	if (typeof accept === 'string' && accept.includes('text/html')) {
+		if (SVELTE_PAGES.has(path)) return url;
+		if (SVELTE_PREFIXES.some((p) => path.startsWith(p))) return url;
 	}
 	return undefined;
 }
@@ -45,9 +55,13 @@ export default defineConfig({
 			'/timers': { target: 'http://localhost:8000', changeOrigin: true, bypass },
 			'/ai': { target: 'http://localhost:8000', changeOrigin: true, bypass },
 		'/tts': { target: 'http://localhost:8000', changeOrigin: true, bypass },
+		'/subscribers': { target: 'http://localhost:8000', changeOrigin: true, bypass },
+		'/bits': { target: 'http://localhost:8000', changeOrigin: true, bypass },
+		'/gifters': { target: 'http://localhost:8000', changeOrigin: true, bypass },
 		'/system/status': { target: 'http://localhost:8000' },
 			'/system/traces': { target: 'http://localhost:8000' },
 			'/system/events': { target: 'http://localhost:8000' },
+			'/overlays': { target: 'http://localhost:8000', changeOrigin: true, bypass },
 		}
 	}
 });

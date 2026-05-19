@@ -181,12 +181,12 @@
 			<CardContent class="bg-muted/30 border-b p-6 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200">
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div class="flex flex-col gap-2">
-						<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nombre</label>
-						<Input bind:value={newName} placeholder="!hola" class="font-mono" />
+						<label for="new-cmd-name" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nombre</label>
+						<Input id="new-cmd-name" bind:value={newName} placeholder="!hola" class="font-mono" />
 					</div>
 					<div class="flex flex-col gap-2">
-						<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nivel de Usuario</label>
-						<select bind:value={newUserLevel} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+						<label for="new-userlevel" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nivel de Usuario</label>
+						<select id="new-userlevel" bind:value={newUserLevel} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
 							{#each userLevels as level}
 								<option value={level}>{level}</option>
 							{/each}
@@ -195,18 +195,18 @@
 				</div>
 
 				<div class="flex flex-col gap-2">
-					<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Respuesta</label>
+					<label for="new-resp-input" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Respuesta</label>
 					<Input id="new-resp-input" bind:value={newResponse} placeholder={"Hola {user}!"} />
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
 					<div class="flex flex-col gap-2">
-						<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cooldown Usuario (s)</label>
-						<Input type="number" bind:value={newCooldown} />
+						<label for="new-cooldown" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cooldown Usuario (s)</label>
+						<Input id="new-cooldown" type="number" bind:value={newCooldown} />
 					</div>
 					<div class="flex flex-col gap-2">
-						<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cooldown Global (s)</label>
-						<Input type="number" bind:value={newGlobalCooldown} />
+						<label for="new-global-cooldown" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Cooldown Global (s)</label>
+						<Input id="new-global-cooldown" type="number" bind:value={newGlobalCooldown} />
 					</div>
 				</div>
 
@@ -264,12 +264,12 @@
 											</div>
 											<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 												<div class="flex flex-col gap-2">
-													<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Respuesta</label>
+													<label for="edit-resp-input" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Respuesta</label>
 													<Input id="edit-resp-input" bind:value={editResponse} />
 												</div>
 												<div class="flex flex-col gap-2">
-													<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nivel</label>
-													<select bind:value={editUserLevel} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+													<label for="edit-userlevel" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nivel</label>
+													<select id="edit-userlevel" bind:value={editUserLevel} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
 														{#each userLevels as level}
 															<option value={level}>{level}</option>
 														{/each}

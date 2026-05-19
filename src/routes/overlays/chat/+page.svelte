@@ -3,6 +3,16 @@
 	import { fade, fly } from 'svelte/transition';
 	import { flip } from 'svelte/animate';
 
+	interface ChatMessageData {
+		display_name?: string;
+		user_name?: string;
+		message?: string;
+		text?: string;
+		is_mod?: boolean;
+		is_sub?: boolean;
+		is_broadcaster?: boolean;
+	}
+
 	function nameColor(name: string): string {
 		let hash = 0;
 		for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -10,7 +20,7 @@
 		return `hsl(${hue}, 80%, 70%)`;
 	}
 
-	function getBadges(d: any): string[] {
+	function getBadges(d: ChatMessageData): string[] {
 		const out = [];
 		if (d.is_broadcaster) out.push('👑');
 		if (d.is_mod) out.push('🛡️');
@@ -25,7 +35,7 @@
 <div class="flex flex-col justify-end h-screen w-screen p-8 overflow-hidden bg-transparent">
 	<div class="flex flex-col gap-4 max-w-md">
 		{#each displayMessages as msg (msg._id)}
-			{@const d = msg.data ?? {}}
+			{@const d = (msg.data ?? {}) as ChatMessageData}
 			<div 
 				animate:flip={{ duration: 400 }}
 				in:fly={{ x: -40, duration: 500, opacity: 0 }}

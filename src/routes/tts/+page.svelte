@@ -4,11 +4,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Copy } from '@lucide/svelte';
 	import { page } from '$app/state';
+	import { show } from '$lib/core/stores/toast.svelte';
 
 	function copyUrl() {
 		const fullUrl = `${page.url.origin}/overlays/tts`;
 		navigator.clipboard.writeText(fullUrl);
-		alert('URL copiada al portapapeles');
+		show('URL copiada al portapapeles', 'success');
 	}
 </script>
 

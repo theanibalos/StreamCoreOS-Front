@@ -126,12 +126,12 @@
 					</div>
 					<div class="grid grid-cols-2 gap-4 mt-2">
 						<div class="space-y-2">
-							<label class="text-sm font-medium">Longitud Max (chars)</label>
-							<Input type="number" bind:value={settings.max_message_length} min="10" max="500" />
+							<label for="tts-max-length" class="text-sm font-medium">Longitud Max (chars)</label>
+							<Input id="tts-max-length" type="number" bind:value={settings.max_message_length} min="10" max="500" />
 						</div>
 						<div class="space-y-2">
-							<label class="text-sm font-medium">Cooldown (s)</label>
-							<Input type="number" bind:value={settings.cooldown_seconds} min="0" max="3600" />
+							<label for="tts-cooldown" class="text-sm font-medium">Cooldown (s)</label>
+							<Input id="tts-cooldown" type="number" bind:value={settings.cooldown_seconds} min="0" max="3600" />
 						</div>
 					</div>
 				</CardContent>
@@ -158,8 +158,8 @@
 						<Switch id="mod-bypass" bind:checked={settings.mod_bypass} />
 					</div>
 					<div class="space-y-2 mt-2">
-						<label class="text-sm font-medium">Channel Points (Nombre de recompensa)</label>
-						<Input bind:value={settings.redemption_title} placeholder="TTS (vacío = desactivado)" />
+						<label for="tts-redemption" class="text-sm font-medium">Channel Points (Nombre de recompensa)</label>
+						<Input id="tts-redemption" bind:value={settings.redemption_title} placeholder="TTS (vacío = desactivado)" />
 						<p class="text-xs text-muted-foreground">Debe coincidir exactamente con el nombre en Twitch.</p>
 					</div>
 				</CardContent>
@@ -172,8 +172,8 @@
 				</CardHeader>
 				<CardContent class="grid gap-4">
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Voz por defecto</label>
-						<Input bind:value={settings.default_voice} placeholder="edge_tts:es-ES-AlvaroNeural" />
+						<label for="tts-default-voice" class="text-sm font-medium">Voz por defecto</label>
+						<Input id="tts-default-voice" bind:value={settings.default_voice} placeholder="edge_tts:es-ES-AlvaroNeural" />
 						<p class="text-xs text-muted-foreground">Formato: <code>provider:id</code>. Ej: <code>edge_tts:es-ES-AlvaroNeural</code></p>
 					</div>
 					<div class="space-y-2">

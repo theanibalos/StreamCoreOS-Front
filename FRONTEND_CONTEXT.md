@@ -1,297 +1,168 @@
 # FRONTEND_CONTEXT — StreamCoreOS Dashboard
 
-Dashboard frontend for the StreamCoreOS Twitch streaming backend.
-Built with **SvelteKit 2 + Svelte 5 (runes) + TypeScript**. No CSS framework — plain scoped CSS with CSS custom properties.
-
-> Read this file before touching any frontend code.
-> Backend context lives in `AI_CONTEXT.md` (plugin development) and `README.md`.
+> Maintained manually. Update this file when architecture changes.
+> Quick reference for patterns and gotchas — read AGENTS.md first.
 
 ---
 
-## Stack
+## Stack (current)
 
 | Concern | Choice |
 |---|---|
-| Framework | SvelteKit 2 |
-| Reactivity | Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`) |
-| Language | TypeScript (strict) |
+| Framework | SvelteKit 2 + Svelte 5 runes |
+| Styling | Tailwind CSS v4 + bits-ui (shadcn-style components) |
+| Icons | Lucide Svelte |
+| Language | TypeScript strict |
 | Package manager | pnpm |
-| Styling | Scoped CSS + `:global()` CSS custom properties |
-| API layer | `src/lib/api/client.ts` — thin fetch wrapper |
-| Dev proxy | Vite server proxy — all backend paths forwarded to `http://localhost:8000` |
+| Charts | D3 (system graph only) |
+| Dark mode | `mode-watcher` |
+
+CSS variables are defined in `src/app.css` using Tailwind's `@theme` block and HSL custom properties. There are legacy fallbacks (`--surface`, `--text`, etc.) for components not yet migrated to Tailwind — remove them as each component is updated.
 
 ---
 
-## Folder structure
+## Folder Structure
 
 ```
 src/
 ├── lib/
-│   ├── api/
-│   │   └── client.ts          # get / post / put / del / sse helpers
-│   ├── types/
-│   │   └── api.ts             # TypeScript types for every OpenAPI schema
-│   ├── stores/
-│   │   ├── stream.svelte.ts   # stream online/offline + viewer/follower counts
-│   │   ├── alerts.svelte.ts   # SSE /dashboard/alerts rolling buffer
-│   │   └── chat.svelte.ts     # SSE /chat/stream rolling buffer
-│   └── components/
-│       ├── StreamStatus.svelte
-│       ├── AlertFeed.svelte
-│       ├── ChatViewer.svelte
-│       ├── LoyaltyLeaderboard.svelte
-│       ├── ViewerLookup.svelte
-│       ├── CommandsManager.svelte
-│       ├── ModerationRules.svelte
-│       ├── ModLog.svelte
-│       ├── ManualActions.svelte
-│       └── SystemHealth.svelte
+│   ├── core/
+│   │   ├── api/client.ts        # HTTP + SSE helpers
+│   │   ├── features.config.ts   # nav sidebar entries
+│   │   └── stores/
+│   │       ├── auth.svelte.ts   # Twitch auth state + checkAuth / startTwitchAuth / logout
+│   │       ├── stream.svelte.ts # stream online/offline + counts, polled every 30s
+│   │       └── scopes.svelte.ts # missing Twitch OAuth scopes warning
+│   ├── components/ui/           # shadcn primitives: Button, Card, Dialog, Input, Table, Tabs…
+│   ├── features/
+│   │   ├── ai/
+│   │   │   └── components/  AIChatConfig, AIModerationConfig, AIProviderConfig
+│   │   ├── auth/
+│   │   │   └── components/  TwitchPermissions
+│   │   ├── chat/
+│   │   │   ├── components/  AlertFeed, ChatReminders, ChatViewer
+│   │   │   └── stores/      alerts.svelte.ts, chat.svelte.ts, tts.svelte.ts
+│   │   ├── commands/
+│   │   │   └── components/  CommandsManager
+│   │   ├── dashboard/
+│   │   │   └── components/  ManualActions, StreamStatus
+│   │   ├── moderation/
+│   │   │   └── components/  ModerationRules, ModLog
+│   │   ├── subscribers/
+│   │   │   └── components/  BitsLeaderboard, GiftersLeaderboard, SubscribersLeaderboard
+│   │   ├── system/
+│   │   │   └── components/  SystemGraph (D3), SystemHealth
+│   │   ├── timers/
+│   │   │   └── components/  TimersManager
+│   │   ├── tts/
+│   │   │   ├── components/  TTSConfig, TtsSettings, TtsVoiceAssignments
+│   │   │   └── stores/      settings.svelte.ts
+│   │   └── viewers/
+│   │       └── components/  RegularsManager, ViewerLookup, ViewersLeaderboard
+│   └── types/api.ts             # all backend response types
 └── routes/
-    ├── +layout.svelte          # sidebar nav, mounts SSE + polling lifecycle
-    ├── +page.svelte            # /            → Dashboard
-    ├── chat/+page.svelte       # /chat        → Live chat
-    ├── loyalty/+page.svelte    # /loyalty     → Leaderboard + viewer lookup
-    ├── commands/+page.svelte   # /commands    → Chat commands CRUD
-    ├── moderation/+page.svelte # /moderation  → Rules + manual actions + log
-    └── system/+page.svelte     # /system      → Health check
+    ├── +layout.svelte            # auth guard, sidebar, SSE lifecycle, scopes banner
+    ├── +page.svelte              # / → Dashboard (StreamStatus + AlertFeed)
+    ├── ai/+page.svelte           # AI provider + chatbot + moderation config
+    ├── auth/callback/+page.svelte
+    ├── chat/+page.svelte         # live chat viewer
+    ├── commands/+page.svelte
+    ├── moderation/+page.svelte
+    ├── settings/+page.svelte     # Twitch scopes / re-auth
+    ├── subscribers/+page.svelte  # leaderboards
+    ├── system/+page.svelte       # health + D3 graph
+    ├── timers/+page.svelte
+    ├── tts/+page.svelte
+    ├── viewers/+page.svelte
+    └── overlays/                 # OBS browser sources (transparent bg, no nav)
+        ├── +layout.svelte        # empty layout for all /overlays/* except /overlays
+        ├── +page.svelte          # overlay index card
+        ├── alerts/+page.svelte
+        ├── chat/+page.svelte
+        └── tts/+page.svelte
 ```
 
 ---
 
-## API client — `src/lib/api/client.ts`
+## API Client — `src/lib/core/api/client.ts`
 
-All requests use a **relative base URL** (`BASE = ''`). The Vite proxy forwards every backend path to `http://localhost:8000`, so both `fetch` and `EventSource` are same-origin — no CORS issues.
+Relative BASE (`''`) — Vite proxy forwards all backend paths to `:8000` in dev. In production, nginx handles the proxy.
 
 ```ts
-import { get, post, put, del, sse } from '$lib/api/client';
-
-// REST — throws on non-2xx
-const res = await get<MyResponse>('/some/path');
-const res = await post<MyResponse>('/some/path', body);
-const res = await put<MyResponse>('/some/path/123', body);
-const res = await del<MyResponse>('/some/path/123');
-
-// SSE — returns cleanup () => void
-const stop = sse(
-  '/dashboard/alerts',
-  (raw) => { /* each JSON frame */ },
-  (connected) => { /* true = open, false = error/close */ }
-);
+import { get, post, put, del, sse } from '$lib/core/api/client';
 ```
 
-All backend responses follow `{ success: boolean, data: T | null, error: string | null }`.
-Callers always check `res.success && res.data` before using the payload.
+SSE reconnects automatically every 3s on error. Returns a `() => void` cleanup.
 
 ---
 
-## Stores — `src/lib/stores/*.svelte.ts`
+## Store Patterns
 
-Svelte 5 `.svelte.ts` files. State is exported as a **mutable object** (not a reassigned `let`) so it works across module boundaries.
+### Global stores (mounted in `+layout.svelte`)
 
-### `stream.svelte.ts`
+- `auth.svelte.ts` — `auth.isAuthenticated`, `auth.loading`, `auth.error`
+- `stream.svelte.ts` — `stream.online`, `stream.viewer_count`, polled every 30s
+- `scopes.svelte.ts` — `scopesState.missing[]`, drives the amber warning banner
 
-```ts
-import { stream, refreshStream } from '$lib/stores/stream.svelte';
-// stream.{ online, viewer_count, follower_count, broadcaster_login, started_at, loading, error }
-await refreshStream(); // fetches /stream/status + /dashboard/stats
+### Feature stores (mounted in the feature component or route)
+
+- `alerts.svelte.ts` — SSE `/dashboard/alerts`, max 100 messages
+- `chat.svelte.ts` — SSE `/chat/stream`, max 200 messages, oldest-first
+- `tts.svelte.ts` — SSE `/tts/stream`, drives OBS TTS overlay
+
+### SSE normalisation (chat)
+
+`/chat/stream` may send the payload directly (no `{ type, data, timestamp }` wrapper).
+`connectChat()` normalises both formats — do not break this when editing.
+
+---
+
+## Key Patterns
+
+### CRUD component (CommandsManager, ModerationRules as reference)
+
+- Fetch list on `onMount`
+- `editingId: number | null` controls which row is in edit mode
+- After save: patch array in place (`items = items.map(...)`)
+- After delete: filter array (`items = items.filter(...)`)
+- No optimistic UI — wait for server confirmation
+
+### SSE lifecycle (layout, chat page)
+
+```svelte
+onMount(() => {
+  const stop = connectAlerts();
+  return stop;
+});
 ```
 
-Polled every 30 s from `+layout.svelte` via `setInterval`.
+### Auth retry (`auth.svelte.ts`)
 
-### `alerts.svelte.ts`
-
-```ts
-import { alerts, connectAlerts } from '$lib/stores/alerts.svelte';
-// alerts.{ messages: SseMessage[], connected: boolean }
-// messages = newest first, max 100
-const stop = connectAlerts(); // opens SSE /dashboard/alerts
-```
-
-Connected globally in `+layout.svelte` → all pages read `alerts`.
-
-### `chat.svelte.ts`
-
-```ts
-import { chat, connectChat } from '$lib/stores/chat.svelte';
-// chat.{ messages: SseMessage[], connected: boolean }
-// messages = oldest first, max 200
-const stop = connectChat(); // opens SSE /chat/stream
-```
-
-Connected **only** on `/chat` page → disconnects on navigation away.
-
-#### SSE normalisation (critical)
-
-`/dashboard/alerts` always sends `{ type, data, timestamp }`.
-`/chat/stream` may send the payload **directly** with no wrapper.
-`connectChat()` normalises both into `SseMessage`:
-
-```ts
-const msg: SseMessage =
-  'data' in obj && typeof obj.data === 'object'
-    ? (obj as unknown as SseMessage)
-    : {
-        type: obj.type ?? 'chat.message.received',
-        data: obj,
-        timestamp: obj.timestamp ?? new Date().toISOString()
-      };
-```
-
-**Do not break this normalisation** if editing `chat.svelte.ts`.
+On mount, `checkAuth()` retries up to 5×1s while `connecting === true`. This handles the race between OAuth callback and EventSub connection. The 5s worst case is intentional.
 
 ---
 
 ## Types — `src/lib/types/api.ts`
 
-Single source of truth for all API shapes. Always import from here — never inline types in components.
+Single source of truth for all API shapes. Never inline types in components.
 
-Key types:
-
-| Type | Used by |
-|---|---|
-| `StreamStatusData`, `StreamInfo` | `stream` store |
-| `SseMessage` | all stores, `AlertFeed`, `ChatViewer` |
-| `CommandData`, `CreateCommandRequest`, `UpdateCommandRequest` | `CommandsManager` |
-| `ModRuleData`, `CreateModRuleRequest`, `UpdateModRuleRequest` | `ModerationRules` |
-| `ModLogEntry` | `ModLog` |
-| `LeaderboardEntry` | `LoyaltyLeaderboard` |
-| `ViewerPointsData`, `TransactionData` | `ViewerLookup` |
-| `ToolStatus`, `PluginStatus` | `SystemHealth` |
-
-**Actual API paths** (differ from backend README in two places):
-- Viewer lookup → `GET /loyalty/viewers/{twitch_id}` (not `/loyalty/points/…`)
-- Viewer history → `GET /loyalty/viewers/{twitch_id}/history`
-- Command CRUD → path param is numeric `id`, not `name`
+Known quirk: `SubscribersLeaderboardResponse` does not use the generic `ApiResponse<T>` wrapper because the backend returns `total` at the top level — matches the backend contract.
 
 ---
 
-## Component conventions
+## Known Issues
 
-### Data fetching pattern
-
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  import { get } from '$lib/api/client';
-
-  let data = $state<Item[]>([]);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-
-  async function load() {
-    loading = true; error = null;
-    try {
-      const res = await get<MyResponse>('/path');
-      data = res.success && res.data ? res.data : [];
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally { loading = false; }
-  }
-
-  onMount(load);  // ← always onMount, never $effect, for initial fetches
-</script>
-
-{#if loading}<p class="muted">Loading…</p>
-{:else if error}<p class="err">{error}</p>
-{:else}<!-- render data -->{/if}
-```
-
-### Inline CRUD pattern (used in CommandsManager, ModerationRules)
-
-- Fetch list on mount.
-- `editingId: number | null` — which row is being edited.
-- Saving patches the array: `items = items.map(i => i.id === id ? updated : i)`.
-- Deleting filters the array: `items = items.filter(i => i.id !== id)`.
-- No optimistic UI — wait for server confirmation before mutating local state.
-- Confirm before delete: `if (!confirm('Delete?')) return;`
-
-### SSE lifecycle pattern (used in +layout.svelte and /chat page)
-
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  import { connectAlerts } from '$lib/stores/alerts.svelte';
-
-  onMount(() => {
-    const stop = connectAlerts();
-    return stop; // cleanup on unmount
-  });
-</script>
-```
-
----
-
-## Svelte 5 rules enforced in this project
-
-| Rule | Reason |
-|---|---|
-| Use `{@attach fromAction(fn)}` from `svelte/attachments`, never `use:fn` | autofixer enforces attachments over actions |
-| Use `onMount` for initial data fetches, not `$effect` | `$effect` for fetches triggers autofixer warnings |
-| `{#each items as item (item.id)}` — always provide a key | autofixer enforces keyed each blocks |
-| `onMount(() => { ...; return cleanup; })` for SSE / intervals | standard Svelte lifecycle |
-| Don't put DOM side effects inside `$effect` — use actions/attachments + `MutationObserver` | avoids autofixer false positives and infinite loops |
-| Export store state as a mutable object, not a reassigned `let` | Svelte 5 cross-module state constraint |
-
----
-
-## Styling system
-
-Global CSS variables set in `+layout.svelte` `:global(:root)` — Catppuccin Mocha palette:
-
-```css
---surface:  #1e1e2e  /* card background */
---surface2: #181825  /* nested / input background */
---border:   #313244  /* dividers and borders */
---text:     #cdd6f4  /* primary text */
---subtext:  #a6adc8  /* labels, secondary text */
---accent:   #cba6f7  /* purple — buttons, active states */
---green:    #a6e3a1  /* online, success */
---red:      #f38ba8  /* error, ban */
---yellow:   #f9e2af  /* warning, timeout */
---blue:     #89b4fa  /* info, delete action */
-```
-
-Body background: `#11111b`. Sidebar background: `--surface2`.
-
-Every component uses only its own scoped `<style>` block + these variables.
-**Do not add a CSS framework.**
-
----
-
-## Vite proxy — `vite.config.ts`
-
-```ts
-server: {
-  proxy: {
-    '/auth':       'http://localhost:8000',
-    '/stream':     'http://localhost:8000',
-    '/chat':       { target: 'http://localhost:8000', changeOrigin: true },
-    '/dashboard':  { target: 'http://localhost:8000', changeOrigin: true },
-    '/loyalty':    'http://localhost:8000',
-    '/moderation': 'http://localhost:8000',
-    '/system':     'http://localhost:8000',
-    '/ping':       'http://localhost:8000',
-  }
-}
-```
-
-If you add a new backend domain, add it here. `changeOrigin: true` is needed on routes that serve SSE (chat, dashboard).
-
----
-
-## Known issues & fixes applied
-
-| Symptom | Root cause | Fix applied |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `TypeError: can't access property "is_broadcaster", data is undefined` in ChatViewer | Some SSE frames from `/chat/stream` carry no payload (keepalive/connect frames) | `getBadges` accepts `null \| undefined`; template uses `(msg.data ?? {})` cast |
-| Chat messages not appearing despite SSE connected | `/chat/stream` sends payload directly — no `{ type, data, timestamp }` wrapper | `connectChat()` normalises both formats into `SseMessage` |
-| `EventSource` CORS errors ("Firefox can't establish a connection") | `EventSource` with an absolute `http://localhost:8000` URL bypasses Vite proxy | `client.ts` uses `BASE = ''` (relative URLs); Vite proxy handles forwarding |
+| Chat messages not appearing despite SSE connected | `/chat/stream` sends payload directly, no wrapper | `connectChat()` normalises both formats |
+| `EventSource` CORS errors | absolute URL bypasses Vite proxy | `client.ts` uses `BASE = ''` |
+| Some SSE frames carry no payload | keepalive/connect frames | `getBadges` accepts `null \| undefined`, template uses `(msg.data ?? {})` |
 
 ---
 
-## Backend SSE event reference
+## Backend SSE Reference
 
-### `GET /dashboard/alerts` — always `{ type, data, timestamp }`
+### `/dashboard/alerts` — always `{ type, data, timestamp }`
 
 | `type` | Notable `data` fields |
 |---|---|
@@ -303,43 +174,8 @@ If you add a new backend domain, add it here. `changeOrigin: true` is needed on 
 | `channel.raid` | `from_broadcaster_user_name`, `viewers` |
 | `stream.session.started` | `broadcaster_login`, `started_at` |
 | `stream.session.ended` | `ended_at` |
-| `loyalty.points.awarded` | `display_name`, `amount`, `reason` |
-| `loyalty.reward.redeemed` | `display_name`, `reward_name`, `cost` |
 | `moderation.action.taken` | `display_name`, `action`, `reason` |
 
-### `GET /chat/stream` — payload may or may not be wrapped
+### `/chat/stream` — payload may be unwrapped
 
-Fields: `display_name`, `user_id`, `message`, `is_mod`, `is_sub`, `is_broadcaster`, `badges`, `channel`, `timestamp`.
-
----
-
-## Commands
-
-```bash
-pnpm dev      # dev server at localhost:5173, proxies :8000
-pnpm check    # TypeScript + Svelte type check — run after every change
-pnpm build    # production build
-pnpm preview  # preview production build
-```
-
----
-
-## What is implemented
-
-| Route | Components | Endpoints |
-|---|---|---|
-| `/` | `StreamStatus`, `AlertFeed` | Poll `/stream/status` + `/dashboard/stats` (30 s); SSE `/dashboard/alerts` |
-| `/chat` | `ChatViewer` | SSE `/chat/stream` |
-| `/loyalty` | `LoyaltyLeaderboard`, `ViewerLookup` | `GET /loyalty/leaderboard`; `GET /loyalty/viewers/{id}`; `GET /loyalty/viewers/{id}/history` |
-| `/commands` | `CommandsManager` | `GET/POST /chat/commands`; `PUT/DELETE /chat/commands/{id}` |
-| `/moderation` | `ModerationRules`, `ManualActions`, `ModLog` | `GET/POST /moderation/rules`; `PUT/DELETE /moderation/rules/{id}`; `POST /moderation/ban\|timeout\|unban`; `GET /moderation/log` |
-| `/system` | `SystemHealth` | `GET /ping`; `GET /system/status` |
-
-## What is not yet implemented
-
-- `GET /stream/sessions` — session history table
-- `GET /loyalty/rewards` + `POST /loyalty/rewards` + `POST /loyalty/redeem` — reward management
-- `GET /dashboard/stats/history` — viewer/follower count chart
-- `GET /system/events` + `/system/traces/*` — event bus inspector / trace viewer
-- SSE `/system/events/stream`, `/system/logs/stream`, `/system/traces/stream`
-- Auth flow UI — button that redirects to `GET /auth/twitch`
+Fields: `display_name`, `user_id`, `message`, `is_mod`, `is_sub`, `is_broadcaster`, `channel`, `timestamp`.

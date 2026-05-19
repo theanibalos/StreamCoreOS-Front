@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get, put } from '$lib/core/api/client';
-	import type { ApiResponse } from '$lib/types/api';
+	import type { AIConfigData, GetAIConfigResponse, SaveAIConfigResponse } from '$lib/types/api';
+	import { show } from '$lib/core/stores/toast.svelte';
 	import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -9,28 +10,16 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Slider } from '$lib/components/ui/slider';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import { Switch } from '$lib/components/ui/switch';
 	import { MessageSquare, Sparkles, Clock, Hash, RotateCcw, Save } from '@lucide/svelte';
 
 	const DEFAULT_PROMPT = 'You are a helpful Twitch chat assistant. Be concise and reply in under 40 words.';
 
-	interface AIConfigData {
-		chat_system_prompt: string;
-		chat_max_tokens: number;
-		chat_temperature: number;
-		chat_cooldown_s: number;
-		provider: string;
-		endpoint_url: string;
-		model: string;
-		has_api_key: boolean;
-	}
-
-	type GetAIConfigResponse = ApiResponse<AIConfigData>;
-	type SaveAIConfigResponse = ApiResponse<AIConfigData>;
-
 	let loading = $state(true);
 	let saving = $state(false);
+	let togglingEnabled = $state(false);
 	let error = $state<string | null>(null);
-	let successMsg = $state<string | null>(null);
+	let iaEnabled = $state(true);
 
 	let fullConfig = $state<AIConfigData | null>(null);
 
@@ -42,27 +31,44 @@
 	async function load() {
 		loading = true; error = null;
 		try {
-			const res = await get<GetAIConfigResponse>('/ai/config');
-			if (res.success && res.data) {
-				fullConfig = res.data;
-				system_prompt = res.data.chat_system_prompt || DEFAULT_PROMPT;
-				max_tokens = res.data.chat_max_tokens ?? 200;
-				temperature = res.data.chat_temperature ?? 0.7;
-				chat_cooldown_s = res.data.chat_cooldown_s ?? 120;
+			const [configRes, enabledRes] = await Promise.all([
+				get<GetAIConfigResponse>('/ai/config'),
+				get<{ success: boolean; data?: { enabled: boolean } }>('/ai/ia/enabled'),
+			]);
+			if (configRes.success && configRes.data) {
+				fullConfig = configRes.data;
+				system_prompt = configRes.data.chat_system_prompt || DEFAULT_PROMPT;
+				max_tokens = configRes.data.chat_max_tokens ?? 200;
+				temperature = configRes.data.chat_temperature ?? 0.7;
+				chat_cooldown_s = configRes.data.chat_cooldown_s ?? 120;
+			}
+			if (enabledRes.success && enabledRes.data != null) {
+				iaEnabled = enabledRes.data.enabled;
 			}
 		} catch (e) { error = e instanceof Error ? e.message : String(e); } finally { loading = false; }
+	}
+
+	async function toggleEnabled() {
+		togglingEnabled = true;
+		try {
+			const res = await put<{ success: boolean; data?: { enabled: boolean }; error?: string }>(
+				'/ai/ia/enabled',
+				{ enabled: !iaEnabled }
+			);
+			if (res.success && res.data != null) iaEnabled = res.data.enabled;
+			else error = res.error ?? 'Error al cambiar estado.';
+		} catch (e) { error = e instanceof Error ? e.message : String(e); } finally { togglingEnabled = false; }
 	}
 
 	onMount(load);
 
 	async function save() {
 		if (!fullConfig) return;
-		saving = true; error = null; successMsg = null;
+		saving = true; error = null;
 		try {
-			// Extract only fields valid for SaveAIConfigRequest
-			const { 
-				provider, endpoint_url, model, timeout_s, 
-				disable_reasoning, extra_headers, extra_payload 
+			const {
+				provider, endpoint_url, model, timeout_s,
+				disable_reasoning, extra_headers, extra_payload
 			} = fullConfig;
 
 			const body = {
@@ -80,7 +86,7 @@
 			};
 
 			const res = await put<SaveAIConfigResponse>('/ai/config', body);
-			if (res.success) { successMsg = 'Configuración guardada correctamente.'; setTimeout(() => (successMsg = null), 3000); }
+			if (res.success) { show('Configuración guardada correctamente.', 'success'); }
 			else { error = res.error ?? 'Error al guardar.'; }
 		} catch (e) { error = e instanceof Error ? e.message : String(e); } finally { saving = false; }
 	}
@@ -96,7 +102,11 @@
 			<CardTitle class="text-lg font-bold uppercase tracking-tight flex items-center gap-2">
 				<MessageSquare class="w-5 h-5 text-primary" /> Personalidad del Chat (!ia)
 			</CardTitle>
-			<Badge variant="outline" class="font-mono bg-primary/5 border-primary/20 text-primary">!ia</Badge>
+			<div class="flex items-center gap-3">
+				<span class="text-xs text-muted-foreground">{iaEnabled ? 'Activo' : 'Inactivo'}</span>
+				<Switch checked={iaEnabled} onCheckedChange={toggleEnabled} disabled={togglingEnabled} />
+				<Badge variant={iaEnabled ? 'outline' : 'secondary'} class="font-mono {iaEnabled ? 'bg-primary/5 border-primary/20 text-primary' : 'opacity-50'}">!ia</Badge>
+			</div>
 		</div>
 		<CardDescription>Define cómo se comporta la IA cuando los usuarios interactúan con ella.</CardDescription>
 	</CardHeader>
@@ -108,7 +118,6 @@
 			<div class="p-8 text-center border-2 border-dashed rounded-lg text-muted-foreground">Configura un proveedor de IA primero.</div>
 		{:else}
 			{#if error}<div class="p-3 text-sm text-destructive bg-destructive/10 rounded-md">{error}</div>{/if}
-			{#if successMsg}<div class="p-3 text-sm text-green-600 bg-green-500/10 rounded-md">{successMsg}</div>{/if}
 
 			<div class="flex flex-col gap-2">
 				<Label for="sys-prompt" class="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">

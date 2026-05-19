@@ -6,7 +6,10 @@
 
 	// El layout raíz ya maneja las conexiones SSE de forma global, 
 	// así que aquí solo nos encargamos del estilo visual.
-	const isActualOverlay = $derived(page.url.pathname !== '/overlays');
+	const isActualOverlay = $derived(
+		page.url.pathname !== '/overlays' &&
+		!page.url.pathname.startsWith('/overlays/builder')
+	);
 </script>
 
 {#if isActualOverlay}

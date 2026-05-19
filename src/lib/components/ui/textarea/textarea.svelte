@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from "$lib/utils";
 
-	let { value = $bindable(), class: className, ...rest } = $props();
+	let { value = $bindable(), class: className = '', ...rest } = $props();
 </script>
 
 <textarea

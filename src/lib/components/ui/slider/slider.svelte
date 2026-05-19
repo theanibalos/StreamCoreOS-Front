@@ -4,15 +4,36 @@
 
 	let {
 		ref = $bindable(null),
-		value = $bindable([]),
-		class: className,
+		value = $bindable<number[]>([]),
+		class: className = '',
+		min = 0,
+		max = 100,
+		step = 1,
+		disabled = false,
+		onValueChange,
 		...restProps
-	}: SliderPrimitive.RootProps = $props();
+	}: {
+		ref?: HTMLElement | null;
+		value?: number[];
+		class?: string;
+		min?: number;
+		max?: number;
+		step?: number;
+		disabled?: boolean;
+		onValueChange?: (value: number[]) => void;
+		[key: string]: unknown;
+	} = $props();
 </script>
 
 <SliderPrimitive.Root
+	type="multiple"
 	bind:ref
 	bind:value
+	{min}
+	{max}
+	{step}
+	{disabled}
+	{onValueChange}
 	class={cn("relative flex w-full touch-none select-none items-center", className)}
 	{...restProps}
 >

@@ -311,7 +311,76 @@ export interface UpdateTimerRequest {
 	enabled?: number | null;
 }
 
-export type GetTimersResponse = ApiResponse<TimerData[]> & { data: TimerData[] };
+export type GetTimersResponse = ApiResponse<TimerData[]>;
 export type TimerResponse = ApiResponse<TimerData>;
 export type UpdateTimerResponse = ApiResponse<TimerData>;
 export type DeleteTimerResponse = ApiResponse<null>;
+
+// ─── Subscribers ─────────────────────────────────────────────────────────────
+export interface SubscriberEntry {
+	rank: number;
+	twitch_id: string;
+	display_name: string;
+	tier: string;
+	is_prime: boolean;
+	is_gift: boolean;
+	cumulative_months: number;
+	streak_months: number | null;
+	subscribed_at: string;
+	is_active: boolean;
+}
+
+export interface BitsEntry {
+	rank: number;
+	twitch_id: string;
+	display_name: string;
+	bits_total: number;
+	last_cheer_at: string;
+}
+
+export interface SubscribersLeaderboardData {
+	entries: SubscriberEntry[];
+	total: number;
+}
+
+export interface GifterEntry {
+	rank: number;
+	twitch_id: string;
+	display_name: string;
+	gifts_total: number;
+	last_gift_at: string;
+}
+
+// Backend devuelve total al nivel superior (fuera de data) — no usar ApiResponse<T> aquí
+export type SubscribersLeaderboardResponse = { success: boolean; data: SubscriberEntry[] | null; total?: number; error?: string };
+export type BitsLeaderboardResponse = ApiResponse<BitsEntry[]>;
+export type GiftersLeaderboardResponse = ApiResponse<GifterEntry[]>;
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+export interface AIConfigData {
+	chat_system_prompt: string;
+	chat_max_tokens: number;
+	chat_temperature: number;
+	chat_cooldown_s: number;
+	provider: string;
+	endpoint_url: string;
+	model: string;
+	has_api_key: boolean;
+	timeout_s?: number | null;
+	disable_reasoning?: boolean | null;
+	extra_headers?: Record<string, string> | null;
+	extra_payload?: Record<string, unknown> | null;
+}
+
+export type GetAIConfigResponse = ApiResponse<AIConfigData>;
+export type SaveAIConfigResponse = ApiResponse<AIConfigData>;
+
+// ─── Auth / Scopes ────────────────────────────────────────────────────────────
+export interface ScopesData {
+	connected: boolean;
+	required?: string[];
+	granted?: string[];
+	missing?: string[];
+}
+
+export type ScopesResponse = ApiResponse<ScopesData>;

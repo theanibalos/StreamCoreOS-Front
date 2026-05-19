@@ -181,20 +181,20 @@
 						</div>
 						<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 							<div class="md:col-span-2 flex flex-col gap-2">
-								<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor del filtro</label>
-								<Input bind:value={newValue} placeholder="Ej: insulto1, insulto2, bad-domain.com" />
+								<label for="mod-new-value" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Valor del filtro</label>
+								<Input id="mod-new-value" bind:value={newValue} placeholder="Ej: insulto1, insulto2, bad-domain.com" />
 								<p class="text-[10px] text-muted-foreground italic">Separa por comas si el backend lo soporta o añade una por una.</p>
 							</div>
 							<div class="flex flex-col gap-2">
-								<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Acción</label>
-								<select bind:value={newAction} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+								<label for="mod-new-action" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Acción</label>
+								<select id="mod-new-action" bind:value={newAction} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
 									{#each ACTIONS as a}<option value={a}>{a}</option>{/each}
 								</select>
 							</div>
 							{#if newAction === 'timeout'}
 								<div class="flex flex-col gap-2">
-									<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tiempo (s)</label>
-									<Input type="number" bind:value={newDuration} />
+									<label for="mod-new-duration" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tiempo (s)</label>
+									<Input id="mod-new-duration" type="number" bind:value={newDuration} />
 								</div>
 							{/if}
 						</div>
@@ -236,20 +236,20 @@
 											<div class="flex flex-col gap-4 border-2 border-primary rounded-2xl p-6 bg-background shadow-xl">
 												<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 													<div class="flex flex-col gap-2">
-														<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Editar Valor</label>
-														<Input bind:value={editValue} />
+														<label for="mod-edit-value" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Editar Valor</label>
+														<Input id="mod-edit-value" bind:value={editValue} />
 													</div>
 													<div class="flex gap-4">
 														<div class="flex flex-col gap-2 flex-1">
-															<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Acción</label>
-															<select bind:value={editAction} class="h-10 rounded-md border text-sm px-2">
+															<label for="mod-edit-action" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Acción</label>
+															<select id="mod-edit-action" bind:value={editAction} class="h-10 rounded-md border text-sm px-2">
 																{#each ACTIONS as a}<option value={a}>{a}</option>{/each}
 															</select>
 														</div>
 														{#if editAction === 'timeout'}
 															<div class="flex flex-col gap-2 w-28">
-																<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tiempo (s)</label>
-																<Input type="number" bind:value={editDuration} />
+																<label for="mod-edit-duration" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tiempo (s)</label>
+																<Input id="mod-edit-duration" type="number" bind:value={editDuration} />
 															</div>
 														{/if}
 													</div>

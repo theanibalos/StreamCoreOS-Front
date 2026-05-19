@@ -104,14 +104,4 @@
   body {
     @apply bg-background text-foreground;
   }
-  :root {
-    /* Legacy fallbacks for unmigrated components */
-    --surface: hsl(var(--card));
-    --surface2: hsl(var(--secondary));
-    --text: hsl(var(--foreground));
-    --subtext: hsl(var(--muted-foreground));
-    --accent: hsl(var(--primary));
-    --red: hsl(var(--destructive));
-    --green: #a6e3a1;
-  }
 }
