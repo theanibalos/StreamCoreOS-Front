@@ -1,26 +1,23 @@
 import { sse } from '$lib/core/api/client';
+import type { TtsMessage } from '$lib/types/api';
 
 let connected = $state(false);
-let audioQueue: string[] = [];
+let currentSpeaker = $state<string | null>(null);
+let queue: TtsMessage[] = [];
 let isPlaying = false;
 
 export const tts = {
-	get connected() { return connected; }
+	get connected() { return connected; },
+	get currentSpeaker() { return currentSpeaker; },
 };
 
 export function connectTTS(): () => void {
 	connected = false;
 	
-	return sse(
+	return sse<TtsMessage>(
 		'/tts/overlay/stream',
-		(raw) => {
-			if (!raw || typeof raw !== 'object') return;
-			const event = raw as any;
-
-			if (event.type === 'audio' && event.audio_b64) {
-				audioQueue.push(event.audio_b64);
-				processQueue();
-			}
+		(msg) => {
+			if (msg.type === 'audio' && msg.audio_b64) enqueue(msg);
 		},
 		(status) => {
 			connected = status;
@@ -28,32 +25,43 @@ export function connectTTS(): () => void {
 	);
 }
 
-async function processQueue() {
-	if (isPlaying || audioQueue.length === 0) return;
-	
-	isPlaying = true;
-	const b64 = audioQueue.shift();
-	
-	if (b64) {
-		try {
-			const audioBlob = b64ToBlob(b64, 'audio/mpeg');
-			const url = URL.createObjectURL(audioBlob);
-			const audio = new Audio(url);
-			
-			audio.onended = () => {
-				URL.revokeObjectURL(url);
-				isPlaying = false;
-				processQueue();
-			};
-			
-			await audio.play();
-		} catch (e) {
-			console.error("[TTS] Playback error:", e);
-			isPlaying = false;
-			processQueue();
-		}
-	}
+function enqueue(msg: TtsMessage) {
+	queue.push(msg);
+	if (!isPlaying) playNext();
 }
+
+async function playNext() {
+	if (queue.length === 0) return;
+
+	const item = queue.shift();
+	if (item) {
+		isPlaying = true;
+		currentSpeaker = item.username;
+		try {
+			await playAudio(item.audio_b64);
+		} catch (err) {
+			console.error('[TTS overlay] playback error:', err);
+		}
+		isPlaying = false;
+		currentSpeaker = null;
+		await sleep(300);
+	}
+
+	playNext();
+}
+
+const playAudio = (b64: string) => new Promise<void>((resolve) => {
+	const audioBlob = b64ToBlob(b64, 'audio/mpeg');
+	const url = URL.createObjectURL(audioBlob);
+	const audio = new Audio(url);
+	audio.addEventListener('ended', () => {
+		URL.revokeObjectURL(url);
+		resolve();
+	});
+	audio.play();
+});
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function b64ToBlob(b64Data: string, contentType = '', sliceSize = 512) {
 	const byteCharacters = atob(b64Data);

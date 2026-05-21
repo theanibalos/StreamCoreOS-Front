@@ -3,7 +3,7 @@ const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(`${BASE}${path}`, init);
-	
+
 	const contentType = res.headers.get('content-type');
 	if (contentType && contentType.includes('application/json')) {
 		const data = await res.json();
@@ -42,9 +42,9 @@ export function del<T>(path: string): Promise<T> {
 	return request<T>(path, { method: 'DELETE' });
 }
 
-export function sse(
+export function sse<T>(
 	path: string,
-	onMessage: (msg: unknown) => void,
+	onMessage: (msg: T) => void,
 	onConnect?: (connected: boolean) => void
 ): () => void {
 	let es: EventSource;
