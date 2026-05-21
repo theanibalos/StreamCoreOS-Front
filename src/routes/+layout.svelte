@@ -67,7 +67,7 @@
 <ModeWatcher />
 <Toaster />
 
-{#if page.url.pathname.startsWith('/overlays/') && page.url.pathname !== '/overlays'}
+{#if page.url.pathname === '/auth/callback' || (page.url.pathname.startsWith('/overlays/') && page.url.pathname !== '/overlays')}
 	{@render children()}
 {:else}
 	<div class="flex h-screen w-full overflow-hidden bg-background text-foreground">
