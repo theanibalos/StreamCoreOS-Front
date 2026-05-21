@@ -12,12 +12,13 @@
 
 	const myAlerts = $derived(activeAlerts.filter((a) => a.elementId === element.id));
 
-	const accent  = $derived(element.style.accent ?? '#9333ea');
-	const bg      = $derived(element.style.background ?? '#000000cc');
-	const radius  = $derived(element.style.border_radius ?? 20);
-	const color   = $derived(element.style.text_color ?? '#ffffff');
-	const glow    = $derived(element.style.glow ?? true);
-	const fs      = $derived(element.style.font_size ?? 28);
+	const accent   = $derived(element.style.accent ?? '#9333ea');
+	const bg       = $derived(element.style.background ?? '#000000cc');
+	const radius   = $derived(element.style.border_radius ?? 20);
+	const color    = $derived(element.style.text_color ?? '#ffffff');
+	const glow     = $derived(element.style.glow ?? true);
+	const fs       = $derived(element.style.font_size ?? 28);
+	const opacity  = $derived((element.style.opacity ?? 100) / 100);
 
 	function renderTemplate(template: string, vars: Record<string, string>): string {
 		return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
@@ -55,6 +56,7 @@
 			box-shadow: {glow ? `0 0 50px ${accent}55, inset 0 0 30px ${accent}11` : 'none'};
 			color: {color};
 			font-size: {fs}px;
+			opacity: {opacity};
 		"
 		in:t.fn={t.params}
 		out:fade={{ duration: 300 }}

@@ -2,39 +2,13 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { get, sse } from '$lib/core/api/client';
-	import type { Component } from 'svelte';
-	import type { OverlayElement, ActiveAlert, ChatMessage } from '$lib/features/overlays/types';
+	import { 
+		WIDGET_REGISTRY, 
+		PREVIEW_VARS, 
+		PREVIEW_STAT_VALUES 
+	} from '$lib/features/overlays';
+	import type { OverlayElement, ActiveAlert, ChatMessage } from '$lib/features/overlays';
 
-	// Widget registry — add new widget types here
-	import AlertWidget         from '$lib/features/overlays/components/AlertWidget.svelte';
-	import StatWidget          from '$lib/features/overlays/components/StatWidget.svelte';
-	import ChatHighlightWidget from '$lib/features/overlays/components/ChatHighlightWidget.svelte';
-	import BannerWidget        from '$lib/features/overlays/components/BannerWidget.svelte';
-	import ProgressBarWidget   from '$lib/features/overlays/components/ProgressBarWidget.svelte';
-
-	const REGISTRY: Record<string, Component<any>> = {
-		alert:          AlertWidget,
-		stat:           StatWidget,
-		chat_highlight: ChatHighlightWidget,
-		banner:         BannerWidget,
-		progress_bar:   ProgressBarWidget,
-	};
-
-	// Sample data shown in preview mode for each trigger type
-	const PREVIEW_VARS: Record<string, Record<string, string>> = {
-		'channel.follow':            { user_name: 'StreamFan123' },
-		'channel.subscribe':         { user_name: 'TopSub99', tier: '1000', message: '¡Los mejores!' },
-		'channel.subscription.gift': { user_name: 'GiftKing', total: '5', tier: '1000' },
-		'channel.cheer':             { user_name: 'BitsMaster', bits: '1000' },
-		'channel.raid':              { user_name: 'FriendStream', viewers: '247' },
-		'chat.message':              { display_name: 'ChatUser', message: 'Hola! PogChamp' },
-	};
-
-	const PREVIEW_STAT_VALUES: Record<string, string> = {
-		'subscribers.active_total': '427',
-		'bits.total':               '15420',
-		'stream.online':            'true',
-	};
 
 	const overlayId = $derived(page.params.id);
 	const isPreview = $derived(page.url.searchParams.has('preview'));
@@ -60,7 +34,7 @@
 				if (isPreview) {
 					applyPreviewData();
 				} else {
-					startStatPolling();
+					await loadInitialStats();
 				}
 			} else {
 				loadError = res.error ?? 'Error al cargar';
@@ -69,6 +43,25 @@
 			loadError = e.message ?? 'Error de red';
 		}
 		loaded = true;
+	}
+
+	// ── Initial stats fetch — populates widgets immediately before SSE connects ─
+	// Also serves as fallback when /overlays/stats SSE is unavailable.
+	async function loadInitialStats() {
+		try {
+			const res = await get<{ success: boolean; data: Record<string, string | number | boolean> }>(
+				'/overlays/data'
+			);
+			if (!res.success) return;
+			const next: Record<string, string> = {};
+			for (const el of elements) {
+				if ((el.type === 'stat' || el.type === 'progress_bar') && el.data_source) {
+					const val = res.data[el.data_source];
+					if (val !== undefined) next[el.id] = String(val);
+				}
+			}
+			statValues = next;
+		} catch { /* ignore */ }
 	}
 
 	// ── Preview mode: inject sample data for all elements ─────────────────────
@@ -101,8 +94,8 @@
 		for (const el of elements) {
 			if (el.type === 'chat_highlight') {
 				chatMessages[el.id] = [
-					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: now },
-					{ display_name: 'ChatUser',  message: 'PogChamp PogChamp',  timestamp: now + 1 },
+					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: now, color: '#FF4500', badges: {}, fragments: [{ type: 'text', text: '¡Qué buen stream!' }] },
+					{ display_name: 'ChatUser',  message: 'PogChamp PogChamp',  timestamp: now + 1, color: '#9147FF', badges: { moderator: '1' }, fragments: [{ type: 'text', text: 'PogChamp PogChamp' }] },
 				];
 			}
 		}
@@ -127,9 +120,12 @@
 	// ── SSE — chat messages ───────────────────────────────────────────────────
 	function connectChat() {
 		return sse('/chat/stream', (raw) => {
-			const msg = raw as Record<string, string>;
+			const msg = raw as Record<string, any>;
 			const display_name = msg.display_name ?? '';
 			const message      = msg.message ?? '';
+			const color        = msg.color ?? '';
+			const badges       = msg.badges ?? {};
+			const fragments    = msg.fragments ?? [];
 
 			for (const el of elements) {
 				if (el.type !== 'chat_highlight') continue;
@@ -138,23 +134,27 @@
 
 				chatMessages[el.id] = [
 					...(chatMessages[el.id] ?? []).slice(-4),
-					{ display_name, message, timestamp: Date.now() }
+					{ display_name, message, timestamp: Date.now(), color, badges, fragments }
 				];
 			}
 		});
 	}
 
 	// ── Trigger matching ──────────────────────────────────────────────────────
+	// channel.subscription.message (resub) is caught by the channel.subscribe trigger
+	// since builders don't expose resub as a separate option.
+	function eventMatchesTrigger(eventType: string, triggerEvent: string): boolean {
+		if (eventType === triggerEvent) return true;
+		if (triggerEvent === 'channel.subscribe' && eventType === 'channel.subscription.message') return true;
+		return false;
+	}
+
 	function handleAlertEvent(eventType: string, data: Record<string, string>) {
 		const now = Date.now();
 		for (const el of elements) {
 			if (el.type !== 'alert' || !el.trigger) continue;
 
-			const triggerEvent = el.trigger.event;
-			const matches =
-				eventType === triggerEvent ||
-				(triggerEvent !== 'chat.message' && eventType.startsWith(triggerEvent));
-			if (!matches) continue;
+			if (!eventMatchesTrigger(eventType, el.trigger.event)) continue;
 
 			const vars: Record<string, string> = {
 				user_name: data.user_name ?? data.from_broadcaster_user_name ?? 'Alguien',
@@ -177,39 +177,25 @@
 		}
 	}
 
-	// ── Stat & progress_bar data polling ─────────────────────────────────────
-	// Flow:
-	//   element.data_source = "subscribers.active_total"
-	//   GET /overlays/data → { "subscribers.active_total": 423 }
-	//   statValues[element.id] = "423"
-	//   Widget reads statValues[element.id]
-	function startStatPolling() {
+	// ── SSE — real-time stat updates ─────────────────────────────────────────
+	// Replaces the old 30-second poll. The server pushes immediately on:
+	// sub/unsub events, follow events, bits events, and the 5-min stats collect.
+	function connectStats() {
 		const needsData = elements.filter(
 			(el) => (el.type === 'stat' || el.type === 'progress_bar') && el.data_source
 		);
-		if (needsData.length === 0) return;
+		if (needsData.length === 0) return () => {};
 
-		async function fetchData() {
-			try {
-				const res = await get<{ success: boolean; data: Record<string, number | boolean | string> }>(
-					'/overlays/data'
-				);
-				if (!res.success) return;
-				const live = res.data;
-				const next: Record<string, string> = { ...statValues };
-				for (const el of needsData) {
-					if (!el.data_source) continue;
-					const val = live[el.data_source];
-					if (val !== undefined) next[el.id] = String(val);
-				}
-				statValues = next;
-			} catch {
-				// OBS overlay degrades silently
+		return sse('/overlays/stats', (raw) => {
+			const live = raw as Record<string, number | boolean | string>;
+			const next: Record<string, string> = { ...statValues };
+			for (const el of needsData) {
+				if (!el.data_source) continue;
+				const val = live[el.data_source];
+				if (val !== undefined) next[el.id] = String(val);
 			}
-		}
-
-		fetchData();
-		setInterval(fetchData, 30_000);
+			statValues = next;
+		});
 	}
 
 	// ── Shared wrapper positions elements on the 1920×1080 canvas ────────────
@@ -223,22 +209,20 @@
 		].join(';');
 	}
 
-	onMount(() => {
-		loadConfig().then(() => {
-			// In preview mode: connect chat SSE for live messages, but skip alerts
-			// (fake sub/follow/raid events would be noise during preview)
-			const stopChat = connectChat();
-			if (isPreview) return () => stopChat();
-			const stopAlerts = connectAlerts();
-			return () => { stopAlerts(); stopChat(); };
-		});
+	onMount(async () => {
+		await loadConfig();
+		const stopChat = connectChat();
+		if (isPreview) return () => stopChat();
+		const stopAlerts = connectAlerts();
+		const stopStats  = connectStats();
+		return () => { stopAlerts(); stopChat(); stopStats(); };
 	});
 </script>
 
 {#if loaded}
 	<div class="canvas">
 		{#each elements as el (el.id)}
-			{@const Widget = REGISTRY[el.type]}
+			{@const Widget = WIDGET_REGISTRY[el.type]}
 			{#if Widget}
 				<div style={wrapperStyle(el)}>
 					<Widget

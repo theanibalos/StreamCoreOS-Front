@@ -8,15 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@lucide/svelte':
+        specifier: ^1.8.0
+        version: 1.8.0(svelte@5.55.1)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
       d3:
         specifier: ^7.9.0
         version: 7.9.0
-      lucide-svelte:
-        specifier: ^1.0.1
-        version: 1.0.1(svelte@5.55.1)
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.55.1)
@@ -27,9 +27,6 @@ importers:
       '@internationalized/date':
         specifier: ^3.12.1
         version: 3.12.1
-      '@lucide/svelte':
-        specifier: ^1.8.0
-        version: 1.8.0(svelte@5.55.1)
       '@sveltejs/adapter-auto':
         specifier: ^7.0.0
         version: 7.0.1(@sveltejs/kit@2.55.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.55.1)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.32.0)))(svelte@5.55.1)(typescript@5.9.3)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.32.0)))
@@ -968,11 +965,6 @@ packages:
 
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
-
-  lucide-svelte@1.0.1:
-    resolution: {integrity: sha512-WvzZgk0pqzgda+AErLvgWxHkfg/+GgUwqKMRHvzt0IqyMdmyEDzDCk3Z+Wo/3y753oIgx8u9Q4eUbWkghFa8Jg==}
-    peerDependencies:
-      svelte: ^3 || ^4 || ^5.0.0-next.42
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -1936,10 +1928,6 @@ snapshots:
       lightningcss-win32-x64-msvc: 1.32.0
 
   locate-character@3.0.0: {}
-
-  lucide-svelte@1.0.1(svelte@5.55.1):
-    dependencies:
-      svelte: 5.55.1
 
   lz-string@1.5.0: {}
 

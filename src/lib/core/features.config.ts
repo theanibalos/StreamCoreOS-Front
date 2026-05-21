@@ -1,7 +1,6 @@
 import type { Component } from 'svelte';
 import {
 	LayoutDashboard,
-	MessageSquare,
 	Users,
 	Star,
 	Terminal,
@@ -16,7 +15,6 @@ import {
 
 export const FEATURES: { id: string; href: string; label: string; icon: Component }[] = [
 	{ id: 'dashboard', href: '/', label: 'Panel', icon: LayoutDashboard },
-	{ id: 'chat', href: '/chat', label: 'Chat', icon: MessageSquare },
 	{ id: 'viewers', href: '/viewers', label: 'Espectadores', icon: Users },
 	{ id: 'subscribers', href: '/subscribers', label: 'Subs', icon: Star },
 	{ id: 'commands', href: '/commands', label: 'Comandos', icon: Terminal },

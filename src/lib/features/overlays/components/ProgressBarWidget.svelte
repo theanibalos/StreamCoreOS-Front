@@ -20,6 +20,7 @@
 	const radius      = $derived(element.style.border_radius ?? 14);
 	const fontSize    = $derived(element.style.font_size ?? 20);
 	const glow        = $derived(element.style.glow ?? true);
+	const opacity     = $derived((element.style.opacity ?? 100) / 100);
 
 	const current = $derived(Math.max(0, parseFloat(statValues[element.id] ?? '0') || 0));
 	const percentage = $derived(Math.min(100, (current / target) * 100));
@@ -46,6 +47,7 @@
 		font-size: {fontSize}px;
 		padding: 12px 16px;
 		gap: 8px;
+		opacity: {opacity};
 	"
 >
 	<!-- Header row -->

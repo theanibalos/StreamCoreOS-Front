@@ -28,6 +28,7 @@ src/
 ├── lib/
 │   ├── core/
 │   │   ├── api/client.ts        # HTTP + SSE helpers
+│   │   ├── components/          # Sidebar, ScopesWarning (Layout extraction)
 │   │   ├── features.config.ts   # nav sidebar entries
 │   │   └── stores/
 │   │       ├── auth.svelte.ts   # Twitch auth state + checkAuth / startTwitchAuth / logout
@@ -36,50 +37,39 @@ src/
 │   ├── components/ui/           # shadcn primitives: Button, Card, Dialog, Input, Table, Tabs…
 │   ├── features/
 │   │   ├── ai/
-│   │   │   └── components/  AIChatConfig, AIModerationConfig, AIProviderConfig
 │   │   ├── auth/
-│   │   │   └── components/  TwitchPermissions
+│   │   │   └── components/      TwitchPermissions, LoginForm
 │   │   ├── chat/
-│   │   │   ├── components/  AlertFeed, ChatReminders, ChatViewer
-│   │   │   └── stores/      alerts.svelte.ts, chat.svelte.ts, tts.svelte.ts
-│   │   ├── commands/
-│   │   │   └── components/  CommandsManager
 │   │   ├── dashboard/
-│   │   │   └── components/  ManualActions, StreamStatus
 │   │   ├── moderation/
-│   │   │   └── components/  ModerationRules, ModLog
+│   │   ├── overlays/            # Modular system: WIDGET_REGISTRY, DEFAULT_ELEMENT_CONFIGS
+│   │   │   └── components/      Widget components + builder/ folder
 │   │   ├── subscribers/
-│   │   │   └── components/  BitsLeaderboard, GiftersLeaderboard, SubscribersLeaderboard
 │   │   ├── system/
-│   │   │   └── components/  SystemGraph (D3), SystemHealth
 │   │   ├── timers/
-│   │   │   └── components/  TimersManager
 │   │   ├── tts/
-│   │   │   ├── components/  TTSConfig, TtsSettings, TtsVoiceAssignments
-│   │   │   └── stores/      settings.svelte.ts
 │   │   └── viewers/
-│   │       └── components/  RegularsManager, ViewerLookup, ViewersLeaderboard
 │   └── types/api.ts             # all backend response types
 └── routes/
-    ├── +layout.svelte            # auth guard, sidebar, SSE lifecycle, scopes banner
-    ├── +page.svelte              # / → Dashboard (StreamStatus + AlertFeed)
-    ├── ai/+page.svelte           # AI provider + chatbot + moderation config
+    ├── +layout.svelte            # Orchestrator (Sidebar + ScopesWarning + Main Content)
+    ├── +page.svelte              # / → Dashboard
+    ├── ai/+page.svelte
     ├── auth/callback/+page.svelte
-    ├── chat/+page.svelte         # live chat viewer
     ├── commands/+page.svelte
     ├── moderation/+page.svelte
     ├── settings/+page.svelte     # Twitch scopes / re-auth
     ├── subscribers/+page.svelte  # leaderboards
     ├── system/+page.svelte       # health + D3 graph
     ├── timers/+page.svelte
-    ├── tts/+page.svelte
+    ├── tts/+page.svelte          # includes OBS overlay URL for /overlays/tts
     ├── viewers/+page.svelte
-    └── overlays/                 # OBS browser sources (transparent bg, no nav)
+    └── overlays/
         ├── +layout.svelte        # empty layout for all /overlays/* except /overlays
-        ├── +page.svelte          # overlay index card
+        ├── +page.svelte          # overlay index
         ├── alerts/+page.svelte
-        ├── chat/+page.svelte
-        └── tts/+page.svelte
+        ├── tts/+page.svelte
+        ├── builder/[id]/+page.svelte # Thin orchestrator for builder components
+        └── live/[id]/+page.svelte    # Thin orchestrator for live widgets
 ```
 
 ---
@@ -144,19 +134,68 @@ On mount, `checkAuth()` retries up to 5×1s while `connecting === true`. This ha
 
 ## Types — `src/lib/types/api.ts`
 
-Single source of truth for all API shapes. Never inline types in components.
+Single source of truth for all backend API shapes. Never inline types in components.
 
 Known quirk: `SubscribersLeaderboardResponse` does not use the generic `ApiResponse<T>` wrapper because the backend returns `total` at the top level — matches the backend contract.
 
 ---
 
-## Known Issues
+## Overlay System — `src/lib/features/overlays/types.ts`
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| Chat messages not appearing despite SSE connected | `/chat/stream` sends payload directly, no wrapper | `connectChat()` normalises both formats |
-| `EventSource` CORS errors | absolute URL bypasses Vite proxy | `client.ts` uses `BASE = ''` |
-| Some SSE frames carry no payload | keepalive/connect frames | `getBadges` accepts `null \| undefined`, template uses `(msg.data ?? {})` |
+### `ElementStyle`
+
+```ts
+type ElementStyle = {
+  background: string;    // hex with alpha e.g. '#000000cc'
+  accent: string;        // hex
+  border_radius: number; // 0–60 px
+  glow: boolean;
+  duration_ms: number;   // alerts only
+  animation: 'scale_in' | 'fade_in' | 'slide_up' | 'slide_down';
+  font_size: number;     // 10–120 px
+  text_color: string;    // hex
+  opacity: number;       // 0–100 (applied as opacity/100 on the root element)
+};
+```
+
+### `ChatMessage` / `ChatFragment`
+
+```ts
+type ChatFragment = {
+  type: string;            // 'text' | 'emote'
+  text: string;
+  emote_id?: string | null;
+  emote_animated?: boolean; // true → use /animated/ CDN path, false → /static/
+};
+
+type ChatMessage = {
+  display_name: string;
+  message: string;         // full text fallback
+  timestamp: number;
+  color?: string;          // Twitch user color e.g. '#FF4500'
+  badges?: Record<string, string>; // set_id → version e.g. { moderator: '1' }
+  fragments?: ChatFragment[];
+};
+```
+
+### Widget rendering rule for fragments
+
+Always iterate with index key — never content key — to avoid Svelte duplicate-key errors when the same emote appears more than once:
+
+```svelte
+{#each frags as frag, i (i)}
+  {#if frag.type === 'emote' && frag.emote_id}
+    {@const fmt = frag.emote_animated ? 'animated' : 'static'}
+    <img src="https://static-cdn.jtvnw.net/emoticons/v2/{frag.emote_id}/{fmt}/dark/1.0" ... />
+  {:else}
+    {frag.text}
+  {/if}
+{/each}
+```
+
+### Badge images
+
+Fetched from `GET /chat/badges` on widget `onMount`. Returns `{ set_id: { version: image_url_1x } }`. Cached 1 hour server-side. Falls back silently when no Twitch session is active.
 
 ---
 
@@ -178,4 +217,27 @@ Known quirk: `SubscribersLeaderboardResponse` does not use the generic `ApiRespo
 
 ### `/chat/stream` — payload may be unwrapped
 
-Fields: `display_name`, `user_id`, `message`, `is_mod`, `is_sub`, `is_broadcaster`, `channel`, `timestamp`.
+| Field | Type | Notes |
+|---|---|---|
+| `display_name` | string | |
+| `user_id` | string | |
+| `message` | string | full text |
+| `color` | string | Twitch user color, may be empty |
+| `badges` | `Record<string, string>` | set_id → version |
+| `fragments` | `ChatFragment[]` | ordered parts; emotes include `emote_id` + `emote_animated` |
+| `is_mod` | bool | |
+| `is_sub` | bool | |
+| `is_broadcaster` | bool | |
+| `channel` | string | |
+| `timestamp` | string | ISO8601 |
+
+---
+
+## Known Issues
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Chat messages not appearing despite SSE connected | `/chat/stream` sends payload directly, no wrapper | `connectChat()` normalises both formats |
+| `EventSource` CORS errors | absolute URL bypasses Vite proxy | `client.ts` uses `BASE = ''` |
+| Some SSE frames carry no payload | keepalive/connect frames | `getBadges` accepts `null \| undefined`, template uses `(msg.data ?? {})` |
+| Same emote twice in a message breaks widget | duplicate key in `{#each}` | always use index key `(i)` for fragment loops |

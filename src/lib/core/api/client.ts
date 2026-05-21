@@ -1,5 +1,5 @@
-// Base vacía — las rutas son relativas y manejadas por el proxy de Vite.
-const BASE = '';
+// Prefijo /api — todas las llamadas al backend van a /api/*
+const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(`${BASE}${path}`, init);
@@ -78,14 +78,8 @@ export function sse(
 			}
 		}
 
-		// USAR SOLO EVENT LISTENERS (NO onmessage) para evitar duplicados
-		// El evento 'message' captura todos los eventos sin nombre.
+		// El backend emite SSE sin línea 'event:', así que el tipo siempre es 'message'.
 		es.addEventListener('message', handleEvent);
-		
-		// Otros eventos específicos por si el backend los usa
-		es.addEventListener('chat_message', handleEvent);
-		es.addEventListener('alert', handleEvent);
-		es.addEventListener('new_message', handleEvent);
 	}
 
 	connect();

@@ -153,6 +153,85 @@ If available, use these before writing any Svelte code:
 
 ---
 
+## Adding an Overlay Widget Type
+
+The overlay system renders widgets inside two pages:
+- **Builder** `src/routes/overlays/builder/[id]/+page.svelte` — drag-and-drop editor with preview data
+- **Live** `src/routes/overlays/live/[id]/+page.svelte` — OBS browser source, transparent background
+
+**Every widget receives these props (always declare all of them, even if unused):**
+
+```ts
+let {
+  element,           // OverlayElement — position, style, template, data_source, config, trigger
+  statValues = {},   // Record<string, string> — keyed by element.id, current data value
+  activeAlerts = [], // ActiveAlert[] — { elementId, vars, expiresAt }
+  chatMessages = {}, // Record<string, ChatMessage[]> — keyed by element.id
+}: {
+  element: OverlayElement;
+  statValues: Record<string, string>;
+  activeAlerts: ActiveAlert[];
+  chatMessages: Record<string, ChatMessage[]>;
+} = $props();
+```
+
+Types are in `src/lib/features/overlays/types.ts`.
+
+**To add a new widget type, touch exactly these files:**
+
+### 1. Create the component
+`src/lib/features/overlays/components/MyWidget.svelte`
+
+Look at `StatWidget.svelte` (data-driven) or `AlertWidget.svelte` (event-driven) as references.
+The component fills 100% of its wrapper div — do NOT set position/size yourself (the parent handles it).
+
+### 3. Register in the live page
+`src/routes/overlays/live/[id]/+page.svelte`
+
+The route is thin; it imports `WIDGET_REGISTRY` from `$lib/features/overlays`. To add a widget type, just update the registry in the feature's index.
+
+### 4. Register in the builder page
+`src/routes/overlays/builder/[id]/+page.svelte`
+
+The builder is composed of modular components:
+- `BuilderHeader`: Title, Save, OBS URL, Test buttons.
+- `Toolbar`: Left sidebar with draggable element types.
+- `Canvas`: The 1920x1080 workspace.
+- `AIAssistant`: Bottom bar for AI commands.
+- `PropertyEditor`: Right panel for styles and config.
+
+**To add a new widget type, follow these steps in `src/lib/features/overlays/index.ts`:**
+1. Import and export your new `.svelte` component.
+2. Add it to `WIDGET_REGISTRY`.
+3. Add its default properties to `DEFAULT_ELEMENT_CONFIGS`.
+4. Update `createOverlayElement` if special logic is needed.
+
+---
+
+## Core Layout Components
+
+The main `+layout.svelte` is an orchestrator. Complex UI is extracted to:
+- `$lib/features/auth/components/LoginForm.svelte`: Handled when not authenticated.
+- `$lib/core/components/Sidebar.svelte`: Main navigation and theme toggle.
+- `$lib/core/components/ScopesWarning.svelte`: Twitch permission alerts.
+
+
+### 4. Update the AI system prompt
+`StreamCoreOS/domains/overlays/plugins/generate_overlay_plugin.py`
+
+Add `my_type` to the `"type"` field docs and describe its rules (trigger, data_source, template vars, config shape, typical size).
+
+### Data flow summary
+| Widget | Reads from | When it shows |
+|---|---|---|
+| `stat` | `statValues[element.id]` | Always (data from SSE `/overlays/stats`) |
+| `progress_bar` | `statValues[element.id]` | Always |
+| `alert` | `activeAlerts` filtered by `elementId` | Only while `expiresAt > Date.now()` |
+| `chat_highlight` | `chatMessages[element.id]` | Always (rolling list of messages) |
+| `banner` | `element.template` (static) | Always |
+
+---
+
 ## Commands
 
 ```bash

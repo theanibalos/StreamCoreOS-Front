@@ -1,12 +1,8 @@
 <script lang="ts">
-	import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '$lib/components/ui/card';
+	import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
-	import {
-		Copy, ExternalLink, Volume2, MessageSquare, Heart, Info,
-		Plus, Pencil, Trash2, Layers, Loader2
-	} from '@lucide/svelte';
+	import { Copy, ExternalLink, Info, Plus, Pencil, Trash2, Layers, Loader2 } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { show } from '$lib/core/stores/toast.svelte';
 	import { get, post, del } from '$lib/core/api/client';
@@ -14,27 +10,6 @@
 	let baseUrl = $state('http://localhost:5173');
 
 	// ── Built-in overlays ─────────────────────────────────────────────────────
-	const builtins = [
-		{
-			name: 'Chat Overlay',
-			description: 'Muestra los mensajes del chat con animaciones premium y fondo transparente.',
-			url: () => baseUrl + '/overlays/chat',
-			icon: MessageSquare,
-		},
-		{
-			name: 'Alerts Overlay',
-			description: 'Notificaciones visuales para followers, subs y raids.',
-			url: () => baseUrl + '/overlays/alerts',
-			icon: Heart,
-		},
-		{
-			name: 'TTS Overlay',
-			description: 'Reproduce los mensajes mediante voz.',
-			url: () => baseUrl + '/overlays/tts',
-			icon: Volume2,
-		}
-	];
-
 	// ── Custom overlays ───────────────────────────────────────────────────────
 	type OverlayItem = { id: number; name: string; created_at?: string };
 
@@ -103,39 +78,6 @@
 		<div class="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-center gap-3 text-blue-600 max-w-sm">
 			<Info class="w-5 h-5 flex-shrink-0" />
 			<p class="text-[11px] leading-tight font-medium">Tip: En OBS, activa "Controlar audio vía OBS" en las propiedades de la fuente de navegador.</p>
-		</div>
-	</div>
-
-	<!-- Built-in overlays -->
-	<div>
-		<h2 class="text-lg font-semibold mb-3">Overlays integrados</h2>
-		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each builtins as overlay}
-				{@const fullUrl = overlay.url()}
-				<Card class="flex flex-col border-2 border-primary/20">
-					<CardHeader>
-						<div class="flex items-center justify-between mb-2">
-							<div class="p-2 bg-primary/10 rounded-lg">
-								<overlay.icon class="w-6 h-6 text-primary" />
-							</div>
-							<Badge variant="default" class="bg-green-500/15 text-green-600 dark:text-green-400 border-none shadow-none text-[10px] uppercase font-bold tracking-widest">Activo</Badge>
-						</div>
-						<CardTitle class="text-xl">{overlay.name}</CardTitle>
-						<CardDescription class="text-xs leading-relaxed min-h-[40px]">{overlay.description}</CardDescription>
-					</CardHeader>
-					<CardContent class="flex-1">
-						<div class="bg-muted/50 p-2.5 rounded-md border font-mono text-[10px] break-all select-all">{fullUrl}</div>
-					</CardContent>
-					<CardFooter class="grid grid-cols-2 gap-2">
-						<Button variant="outline" size="sm" onclick={() => copyToClipboard(fullUrl)}>
-							<Copy class="w-3.5 h-3.5 mr-2" /> Copiar URL
-						</Button>
-						<Button variant="outline" size="sm" href={fullUrl} target="_blank">
-							<ExternalLink class="w-3.5 h-3.5 mr-2" /> Probar
-						</Button>
-					</CardFooter>
-				</Card>
-			{/each}
 		</div>
 	</div>
 

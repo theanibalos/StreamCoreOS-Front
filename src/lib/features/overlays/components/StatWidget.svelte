@@ -9,13 +9,14 @@
 		statValues: Record<string, string>;
 	} = $props();
 
-	const value  = $derived(statValues[element.id] ?? '…');
-	const accent = $derived(element.style.accent ?? '#9333ea');
-	const bg     = $derived(element.style.background ?? '#000000aa');
-	const radius = $derived(element.style.border_radius ?? 12);
-	const color  = $derived(element.style.text_color ?? '#ffffff');
-	const fs     = $derived(element.style.font_size ?? 22);
-	const glow   = $derived(element.style.glow ?? false);
+	const value   = $derived(statValues[element.id] ?? '…');
+	const accent  = $derived(element.style.accent ?? '#9333ea');
+	const bg      = $derived(element.style.background ?? '#000000aa');
+	const radius  = $derived(element.style.border_radius ?? 12);
+	const color   = $derived(element.style.text_color ?? '#ffffff');
+	const fs      = $derived(element.style.font_size ?? 22);
+	const glow    = $derived(element.style.glow ?? false);
+	const opacity = $derived((element.style.opacity ?? 100) / 100);
 
 	function renderTemplate(template: string, vars: Record<string, string>): string {
 		return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
@@ -31,6 +32,7 @@
 		box-shadow: {glow ? `0 0 20px ${accent}44` : 'none'};
 		color: {color};
 		font-size: {fs}px;
+		opacity: {opacity};
 	"
 >
 	{renderTemplate(element.template, { value })}

@@ -7,6 +7,7 @@ export type ElementStyle = {
 	animation: 'scale_in' | 'fade_in' | 'slide_up' | 'slide_down';
 	font_size: number;
 	text_color: string;
+	opacity: number;
 };
 
 export type OverlayElement = {
@@ -30,8 +31,18 @@ export type ActiveAlert = {
 	expiresAt: number;
 };
 
+export type ChatFragment = {
+	type: string;
+	text: string;
+	emote_id?: string | null;
+	emote_animated?: boolean;
+};
+
 export type ChatMessage = {
 	display_name: string;
 	message: string;
 	timestamp: number;
+	color?: string;
+	badges?: Record<string, string>;
+	fragments?: ChatFragment[];
 };

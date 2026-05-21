@@ -17,17 +17,19 @@
 		}
 
 		try {
-			// Llamamos al callback del backend
-			const res = await get<OAuthCallbackResponse>(
-				`/auth/twitch/callback?code=${code}${state ? `&state=${state}` : ''}`
-			);
+			const params = new URLSearchParams({ code });
+			if (state) params.set('state', state);
 
-			if (res.success) {
-				// Re-validamos la sesión global y redirigimos al dashboard
+			// redirect: 'manual' evita que fetch siga el 302 que manda el backend
+			// y reciba HTML en vez de JSON. Un opaqueredirect = backend procesó OK.
+			const res = await fetch(`/auth/twitch/callback?${params}`, { redirect: 'manual' });
+
+			if (res.type === 'opaqueredirect' || res.ok) {
 				await checkAuth();
 				window.location.href = '/';
 			} else {
-				error = res.error ?? 'Authentication failed during callback.';
+				const body = await res.json().catch(() => ({}));
+				error = (body as any).error ?? `Error ${res.status} al autenticar.`;
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
