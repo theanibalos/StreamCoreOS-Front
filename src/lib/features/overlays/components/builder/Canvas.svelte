@@ -40,7 +40,7 @@
 	}
 </script>
 
-<div class="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4">
+<div class="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4 h-full">
 	<div
 		class="relative bg-black rounded overflow-hidden shadow-2xl"
 		style="aspect-ratio: 1920/1080; height: min(calc(100% - 0px), calc((100vw - 380px) * 9 / 16)); max-height: 100%;"
