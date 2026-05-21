@@ -3,6 +3,15 @@ name: Publish Docker Image
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'static/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'svelte.config.js'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
 
 jobs:
   publish:
