@@ -22,7 +22,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/chat/badges');
+			const res = await fetch('/api/chat/badges');
 			if (res.ok) badgeMap = await res.json();
 		} catch { /* sin sesión — badges omitidas */ }
 	});
