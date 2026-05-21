@@ -3,80 +3,10 @@
 	import { connectTTS, tts } from '$lib/features/chat';
 	import { Volume2 } from '@lucide/svelte';
 
-	let currentSpeaker = $state<string | null>(null);
-	let queue: { username: string; text: string; audio_b64: string }[] = [];
-	let playing = false;
-	let es: EventSource | null = null;
-	let audioCtx: AudioContext | null = null;
-
-	function connect() {
-		es = new EventSource('/tts/overlay/stream');
-		es.onmessage = (e) => {
-			try {
-				const msg = JSON.parse(e.data);
-				if (msg.type === 'audio') enqueue(msg);
-			} catch {
-				// ignore malformed
-			}
-		};
-		es.onerror = () => {
-			es?.close();
-			setTimeout(connect, 3000);
-		};
-	}
-
-	function enqueue(msg: { username: string; text: string; audio_b64: string }) {
-		queue.push(msg);
-		if (!playing) playNext();
-	}
-
-	async function playNext() {
-		if (queue.length === 0) {
-			playing = false;
-			currentSpeaker = null;
-			return;
-		}
-		playing = true;
-		const item = queue.shift()!;
-		currentSpeaker = item.username;
-		try {
-			await playAudio(item.audio_b64);
-		} catch (err) {
-			console.error('[TTS overlay] playback error:', err);
-		}
-		await sleep(300);
-		playNext();
-	}
-
-	async function playAudio(b64: string): Promise<void> {
-		if (!audioCtx) audioCtx = new AudioContext();
-		if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-		const binary = atob(b64);
-		const bytes = new Uint8Array(binary.length);
-		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-		const buffer = await audioCtx.decodeAudioData(bytes.buffer);
-		return new Promise((resolve) => {
-			const source = audioCtx!.createBufferSource();
-			source.buffer = buffer;
-			source.connect(audioCtx!.destination);
-			source.onended = () => resolve();
-			source.start(0);
-		});
-	}
-
-	function sleep(ms: number) {
-		return new Promise((r) => setTimeout(r, ms));
-	}
-
 	onMount(() => {
-		connect();
 		const stop = connectTTS();
 		return () => {
 			stop();
-			es?.close();
-			audioCtx?.close();
 		};
 	});
 </script>
@@ -100,10 +30,10 @@
 			</p>
 		</div>
 
-		{#if currentSpeaker}
+		{#if tts.currentSpeaker}
 			<div class="flex items-center gap-2 bg-black/40 rounded-full px-4 py-1.5 mt-1 border border-white/10">
 				<span class="text-base">🔊</span>
-				<span class="text-white text-sm font-semibold">{currentSpeaker}</span>
+				<span class="text-white text-sm font-semibold">{tts.currentSpeaker}</span>
 			</div>
 		{/if}
 
