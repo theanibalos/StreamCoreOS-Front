@@ -2,7 +2,7 @@
 const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-	const res = await fetch(`${BASE}${path}`, init);
+	const res = await fetch(`${BASE}${path}`, { cache: 'no-store', ...init });
 
 	const contentType = res.headers.get('content-type');
 	if (contentType && contentType.includes('application/json')) {

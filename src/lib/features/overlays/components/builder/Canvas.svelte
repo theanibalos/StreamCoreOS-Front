@@ -3,34 +3,43 @@
 	import { WIDGET_REGISTRY } from '../../index';
 	import type { OverlayElement, ActiveAlert, ChatMessage } from '../../index';
 
-	let { 
-		elements, 
-		selectedId = $bindable(), 
-		statValues, 
-		activeAlerts, 
+	let {
+		elements,
+		selectedId = $bindable(),
+		canvasRef = $bindable<HTMLDivElement | null>(null),
+		statValues,
+		activeAlerts,
 		chatMessages,
+		canvasWidth = 1920,
+		canvasHeight = 1080,
 		onStartDrag,
 		onDeleteSelected
-	}: { 
+	}: {
 		elements: OverlayElement[];
 		selectedId: string | null;
+		canvasRef?: HTMLDivElement | null;
 		statValues: Record<string, string>;
 		activeAlerts: ActiveAlert[];
 		chatMessages: Record<string, ChatMessage[]>;
+		canvasWidth?: number;
+		canvasHeight?: number;
 		onStartDrag: (e: MouseEvent, id: string) => void;
 		onDeleteSelected: () => void;
 	} = $props();
 
-	let canvasRef = $state<HTMLDivElement | null>(null);
+	const aspectRatio = $derived(`${canvasWidth}/${canvasHeight}`);
+	const canvasStyle = $derived(
+		`aspect-ratio: ${aspectRatio}; height: min(calc(100% - 0px), calc((100vw - 380px) * ${canvasHeight} / ${canvasWidth})); max-height: 100%;`
+	);
 
 	function elStyle(el: OverlayElement): string {
 		const isSelected = el.id === selectedId;
 		return [
 			'position: absolute',
-			`left: ${(el.x / 1920) * 100}%`,
-			`top: ${(el.y / 1080) * 100}%`,
-			`width: ${(el.width / 1920) * 100}%`,
-			`height: ${(el.height / 1080) * 100}%`,
+			`left: ${(el.x / canvasWidth) * 100}%`,
+			`top: ${(el.y / canvasHeight) * 100}%`,
+			`width: ${(el.width / canvasWidth) * 100}%`,
+			`height: ${(el.height / canvasHeight) * 100}%`,
 			'cursor: move',
 			isSelected ? 'outline: 2px solid #9147ff' : 'outline: 1px solid rgba(255,255,255,0.15)',
 			'z-index: ' + (isSelected ? '50' : '10'),
@@ -43,7 +52,7 @@
 <div class="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4 h-full">
 	<div
 		class="relative bg-black rounded overflow-hidden shadow-2xl"
-		style="aspect-ratio: 1920/1080; height: min(calc(100% - 0px), calc((100vw - 380px) * 9 / 16)); max-height: 100%;"
+		style={canvasStyle}
 		bind:this={canvasRef}
 		onmousedown={(e) => { if (e.target === e.currentTarget) selectedId = null; }}
 		role="presentation"

@@ -1,25 +1,53 @@
 <script lang="ts">
-	import { ArrowLeft, Layers, Copy, ExternalLink, Play, Save } from '@lucide/svelte';
+	import { ArrowLeft, Layers, Copy, ExternalLink, Play, Save, Monitor } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 
-	let { 
-		overlayName = $bindable(), 
-		saving, 
+	const PRESETS = [
+		{ label: 'Full HD — 1920×1080', w: 1920, h: 1080 },
+		{ label: 'HD — 1280×720', w: 1280, h: 720 },
+		{ label: '2K — 2560×1440', w: 2560, h: 1440 },
+		{ label: 'Chat panel — 400×600', w: 400, h: 600 },
+		{ label: 'Chat vertical — 350×800', w: 350, h: 800 },
+		{ label: 'Custom…', w: 0, h: 0 },
+	];
+
+	let {
+		overlayName = $bindable(),
+		canvasWidth = $bindable(),
+		canvasHeight = $bindable(),
+		saving,
 		liveUrl,
-		onSave, 
-		onCopyLiveUrl, 
-		onTestAlert 
-	}: { 
+		onSave,
+		onCopyLiveUrl,
+		onTestAlert
+	}: {
 		overlayName: string;
+		canvasWidth: number;
+		canvasHeight: number;
 		saving: boolean;
 		liveUrl: string;
 		onSave: () => void;
 		onCopyLiveUrl: () => void;
 		onTestAlert: () => void;
 	} = $props();
+
+	const selectedPreset = $derived(
+		PRESETS.find((p) => p.w === canvasWidth && p.h === canvasHeight) ?? PRESETS[PRESETS.length - 1]
+	);
+	const isCustom = $derived(selectedPreset.w === 0);
+
+	function onPresetChange(e: Event) {
+		const idx = parseInt((e.target as HTMLSelectElement).value);
+		const p = PRESETS[idx];
+		if (p.w !== 0) {
+			canvasWidth = p.w;
+			canvasHeight = p.h;
+			onSave();
+		}
+	}
 </script>
 
-<div class="flex items-center gap-3 px-4 py-2 border-b bg-card shrink-0">
+<div class="flex items-center gap-3 px-4 py-2 border-b bg-card shrink-0 flex-wrap">
 	<Button variant="ghost" size="sm" href="/overlays" class="shrink-0 -ml-1 h-8">
 		<ArrowLeft class="w-4 h-4 mr-1.5" /> Overlays
 	</Button>
@@ -30,6 +58,40 @@
 		bind:value={overlayName}
 		onblur={onSave}
 	/>
+
+	<!-- Canvas size selector -->
+	<div class="flex items-center gap-1.5 border rounded-md px-2 py-1 bg-background text-xs text-muted-foreground">
+		<Monitor class="w-3.5 h-3.5 shrink-0" />
+		<select
+			class="bg-transparent border-none outline-none text-xs cursor-pointer pr-1"
+			value={PRESETS.indexOf(selectedPreset)}
+			onchange={onPresetChange}
+		>
+			{#each PRESETS as preset, i}
+				<option value={i}>{preset.label}</option>
+			{/each}
+		</select>
+		{#if isCustom}
+			<input
+				type="number" min="100" max="7680"
+				class="w-16 bg-transparent border rounded px-1 text-xs outline-none focus:ring-1 focus:ring-primary/20 text-foreground"
+				bind:value={canvasWidth}
+				onchange={onSave}
+				placeholder="W"
+			/>
+			<span class="opacity-50">×</span>
+			<input
+				type="number" min="100" max="4320"
+				class="w-16 bg-transparent border rounded px-1 text-xs outline-none focus:ring-1 focus:ring-primary/20 text-foreground"
+				bind:value={canvasHeight}
+				onchange={onSave}
+				placeholder="H"
+			/>
+		{:else}
+			<span class="font-mono opacity-70">{canvasWidth}×{canvasHeight}</span>
+		{/if}
+	</div>
+
 	<div class="flex items-center gap-2 ml-auto">
 		<Button variant="outline" size="sm" class="h-8 text-xs" onclick={onCopyLiveUrl}>
 			<Copy class="w-3.5 h-3.5 mr-1.5" /> URL OBS

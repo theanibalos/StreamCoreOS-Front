@@ -103,8 +103,8 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		gap: 2px;
-		padding: 8px 4px;
+		gap: 0.2em;
+		padding: 0.5em 0.25em;
 		box-sizing: border-box;
 		overflow: hidden;
 		background: transparent;
@@ -115,11 +115,11 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0;
-		padding: 3px 8px;
+		padding: 0.25em 0.6em;
 		border-radius: 4px;
 		background: rgba(24, 24, 27, 0.82);
 		font-family: Inter, Roobert, 'Helvetica Neue', sans-serif;
-		font-size: 13px;
+		font-size: clamp(11px, 2vmin, 18px);
 		line-height: 1.5;
 		word-break: break-word;
 	}

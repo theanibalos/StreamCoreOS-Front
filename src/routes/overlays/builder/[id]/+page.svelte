@@ -25,6 +25,9 @@
 	let overlayName = $state('Cargando...');
 	let elements = $state<OverlayElement[]>([]);
 	let selectedId = $state<string | null>(null);
+	let canvasWidth = $state(1920);
+	let canvasHeight = $state(1080);
+	let canvasAreaRef = $state<HTMLDivElement | null>(null);
 	let aiMessages = $state<AiMessage[]>([]);
 	let aiInput = $state('');
 	let aiLoading = $state(false);
@@ -77,22 +80,25 @@
 
 	async function load() {
 		try {
-			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[] } } }>(
+			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number } } }>(
 				`/overlays/${overlayId}`
 			);
 			if (res.success) {
 				overlayName = res.data.name;
 				elements = res.data.config.elements ?? [];
+				canvasWidth = res.data.config.canvas_width ?? 1920;
+				canvasHeight = res.data.config.canvas_height ?? 1080;
 			}
 		} catch {
 			show('Error al cargar', 'error');
 		}
 	}
 
-	async function save() {
+	async function save(notify = false) {
 		saving = true;
 		try {
-			await put(`/overlays/${overlayId}`, { name: overlayName, config: { elements } });
+			await put(`/overlays/${overlayId}`, { name: overlayName, config: { elements, canvas_width: canvasWidth, canvas_height: canvasHeight } });
+			if (notify) show('Guardado', 'success');
 		} catch {
 			show('Error al guardar', 'error');
 		} finally {
@@ -102,6 +108,9 @@
 
 	function addElement(type: OverlayElement['type']) {
 		const el = createOverlayElement(type);
+		// Center within the configured canvas instead of using 1920×1080 defaults
+		el.x = Math.max(0, Math.round((canvasWidth - el.width) / 2));
+		el.y = Math.max(0, Math.round((canvasHeight - el.height) / 2));
 		elements = [...elements, el];
 		selectedId = el.id;
 		scheduleSave();
@@ -130,9 +139,8 @@
 	function startDrag(e: MouseEvent, elId: string) {
 		e.preventDefault();
 		selectedId = elId;
-		const canvas = document.querySelector('.canvas-wrapper');
-		if (!canvas) return;
-		const rect = canvas.getBoundingClientRect();
+		if (!canvasAreaRef) return;
+		const rect = canvasAreaRef.getBoundingClientRect();
 		const el = elements.find((el) => el.id === elId)!;
 		const startMouseX = e.clientX;
 		const startMouseY = e.clientY;
@@ -140,14 +148,14 @@
 		const startElY = el.y;
 
 		function onMove(me: MouseEvent) {
-			const dx = ((me.clientX - startMouseX) / rect.width) * 1920;
-			const dy = ((me.clientY - startMouseY) / rect.height) * 1080;
+			const dx = ((me.clientX - startMouseX) / rect.width) * canvasWidth;
+			const dy = ((me.clientY - startMouseY) / rect.height) * canvasHeight;
 			elements = elements.map((item) =>
 				item.id === elId
 					? {
 							...item,
-							x: Math.max(0, Math.min(1920 - item.width, startElX + dx)),
-							y: Math.max(0, Math.min(1080 - item.height, startElY + dy))
+							x: Math.max(0, Math.min(canvasWidth - item.width, startElX + dx)),
+							y: Math.max(0, Math.min(canvasHeight - item.height, startElY + dy))
 						}
 					: item
 			);
@@ -215,13 +223,15 @@
 </script>
 
 <div class="flex flex-col h-screen bg-background overflow-hidden">
-	<BuilderHeader 
-		bind:overlayName 
-		{saving} 
-		{liveUrl} 
-		onSave={save} 
-		onCopyLiveUrl={() => { navigator.clipboard.writeText(liveUrl); show('URL copiada', 'success'); }} 
-		onTestAlert={testAlert} 
+	<BuilderHeader
+		bind:overlayName
+		bind:canvasWidth
+		bind:canvasHeight
+		{saving}
+		{liveUrl}
+		onSave={() => save(true)}
+		onCopyLiveUrl={() => { navigator.clipboard.writeText(liveUrl); show('URL copiada', 'success'); }}
+		onTestAlert={testAlert}
 	/>
 
 	<div class="flex flex-1 overflow-hidden">
@@ -229,14 +239,17 @@
 
 		<div class="flex flex-col flex-1 overflow-hidden">
 			<div class="flex-1 overflow-hidden canvas-wrapper">
-				<Canvas 
-					{elements} 
-					bind:selectedId 
-					statValues={previewStatValues} 
-					activeAlerts={previewAlerts} 
-					chatMessages={previewChatMessages} 
-					onStartDrag={startDrag} 
-					onDeleteSelected={deleteSelected} 
+				<Canvas
+					{elements}
+					bind:selectedId
+					bind:canvasRef={canvasAreaRef}
+					statValues={previewStatValues}
+					activeAlerts={previewAlerts}
+					chatMessages={previewChatMessages}
+					{canvasWidth}
+					{canvasHeight}
+					onStartDrag={startDrag}
+					onDeleteSelected={deleteSelected}
 				/>
 			</div>
 

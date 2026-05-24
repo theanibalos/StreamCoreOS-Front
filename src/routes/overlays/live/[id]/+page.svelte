@@ -20,15 +20,19 @@
 	let statValues   = $state<Record<string, string>>({});
 	let loaded       = $state(false);
 	let loadError    = $state<string | null>(null);
+	let canvasWidth  = $state(1920);
+	let canvasHeight = $state(1080);
 
 	// ── Load overlay config ───────────────────────────────────────────────────
 	async function loadConfig() {
 		try {
-			const res = await get<{ success: boolean; data: { config: { elements: OverlayElement[] } }; error?: string }>(
-				`/overlays/${overlayId}/config`
+			const res = await get<{ success: boolean; data: { config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number } }; error?: string }>(
+				`/overlays/${overlayId}/config?_=${Date.now()}`
 			);
 			if (res.success) {
 				elements = res.data.config.elements ?? [];
+				canvasWidth  = res.data.config.canvas_width  ?? 1920;
+				canvasHeight = res.data.config.canvas_height ?? 1080;
 				initChatSlots();
 
 				if (isPreview) {
@@ -177,17 +181,20 @@
 		}
 	}
 
-	// ── SSE — real-time stat updates ─────────────────────────────────────────
-	// Replaces the old 30-second poll. The server pushes immediately on:
-	// sub/unsub events, follow events, bits events, and the 5-min stats collect.
+	// ── SSE — real-time stat updates + config reload notifications ───────────
 	function connectStats() {
 		const needsData = elements.filter(
 			(el) => (el.type === 'stat' || el.type === 'progress_bar') && el.data_source
 		);
-		if (needsData.length === 0) return () => {};
 
 		return sse('/overlays/stats', (raw) => {
-			const live = raw as Record<string, number | boolean | string>;
+			const live = raw as Record<string, any>;
+
+			if (live.__type === 'config_updated') {
+				if (String(live.overlay_id) === overlayId) window.location.reload();
+				return;
+			}
+
 			const next: Record<string, string> = { ...statValues };
 			for (const el of needsData) {
 				if (!el.data_source) continue;
@@ -198,14 +205,13 @@
 		});
 	}
 
-	// ── Shared wrapper positions elements on the 1920×1080 canvas ────────────
 	function wrapperStyle(el: OverlayElement): string {
 		return [
 			'position: absolute',
-			`left: ${(el.x / 1920) * 100}%`,
-			`top: ${(el.y / 1080) * 100}%`,
-			`width: ${(el.width / 1920) * 100}%`,
-			`height: ${(el.height / 1080) * 100}%`
+			`left: ${(el.x / canvasWidth) * 100}%`,
+			`top: ${(el.y / canvasHeight) * 100}%`,
+			`width: ${(el.width / canvasWidth) * 100}%`,
+			`height: ${(el.height / canvasHeight) * 100}%`
 		].join(';');
 	}
 
