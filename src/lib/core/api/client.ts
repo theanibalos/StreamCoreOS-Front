@@ -42,6 +42,12 @@ export function del<T>(path: string): Promise<T> {
 	return request<T>(path, { method: 'DELETE' });
 }
 
+export function upload<T>(path: string, file: File): Promise<T> {
+	const form = new FormData();
+	form.append('files', file);
+	return request<T>(path, { method: 'POST', body: form });
+}
+
 export function sse<T>(
 	path: string,
 	onMessage: (msg: T) => void,

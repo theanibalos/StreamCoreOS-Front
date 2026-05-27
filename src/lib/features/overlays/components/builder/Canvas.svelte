@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { GripVertical, Trash2 } from '@lucide/svelte';
+	import { Trash2 } from '@lucide/svelte';
 	import { WIDGET_REGISTRY } from '../../index';
 	import type { OverlayElement, ActiveAlert, ChatMessage } from '../../index';
 
@@ -12,7 +12,10 @@
 		chatMessages,
 		canvasWidth = 1920,
 		canvasHeight = 1080,
+		backgroundImage = null,
+		backgroundType = null,
 		onStartDrag,
+		onStartResize,
 		onDeleteSelected
 	}: {
 		elements: OverlayElement[];
@@ -23,9 +26,24 @@
 		chatMessages: Record<string, ChatMessage[]>;
 		canvasWidth?: number;
 		canvasHeight?: number;
+		backgroundImage?: string | null;
+		backgroundType?: 'image' | 'video' | null;
 		onStartDrag: (e: MouseEvent, id: string) => void;
+		onStartResize: (e: MouseEvent, id: string, dir: string) => void;
 		onDeleteSelected: () => void;
 	} = $props();
+
+	type Handle = { dir: string; style: string; cursor: string };
+	const HANDLES: Handle[] = [
+		{ dir: 'nw', style: 'top:0;left:0;transform:translate(-50%,-50%)',    cursor: 'nw-resize' },
+		{ dir: 'n',  style: 'top:0;left:50%;transform:translate(-50%,-50%)',  cursor: 'ns-resize' },
+		{ dir: 'ne', style: 'top:0;right:0;transform:translate(50%,-50%)',    cursor: 'ne-resize' },
+		{ dir: 'e',  style: 'top:50%;right:0;transform:translate(50%,-50%)',  cursor: 'ew-resize' },
+		{ dir: 'se', style: 'bottom:0;right:0;transform:translate(50%,50%)',  cursor: 'se-resize' },
+		{ dir: 's',  style: 'bottom:0;left:50%;transform:translate(-50%,50%)','cursor': 'ns-resize' },
+		{ dir: 'sw', style: 'bottom:0;left:0;transform:translate(-50%,50%)',  cursor: 'sw-resize' },
+		{ dir: 'w',  style: 'top:50%;left:0;transform:translate(-50%,-50%)',  cursor: 'ew-resize' },
+	];
 
 	const aspectRatio = $derived(`${canvasWidth}/${canvasHeight}`);
 	const canvasStyle = $derived(
@@ -52,11 +70,21 @@
 <div class="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4 h-full">
 	<div
 		class="relative bg-black rounded overflow-hidden shadow-2xl"
-		style={canvasStyle}
+		style="{canvasStyle}{backgroundImage && backgroundType !== 'video' ? `; background-image: url('${backgroundImage}'); background-size: cover; background-position: center;` : ''}"
 		bind:this={canvasRef}
 		onmousedown={(e) => { if (e.target === e.currentTarget) selectedId = null; }}
 		role="presentation"
 	>
+		<!-- Video background -->
+		{#if backgroundImage && backgroundType === 'video'}
+			<video
+				src={backgroundImage}
+				autoplay loop muted playsinline
+				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+				style="z-index: 0;"
+			></video>
+		{/if}
+
 		<!-- Grid overlay -->
 		<div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 10% 10%;"></div>
 
@@ -81,19 +109,24 @@
 					</div>
 				{/if}
 				{#if el.id === selectedId}
-					<div class="absolute top-1 right-1 z-10 flex items-center gap-1">
-						<button
-							onmousedown={(e) => { e.stopPropagation(); onDeleteSelected(); }}
-							class="flex items-center justify-center w-5 h-5 rounded bg-red-600 hover:bg-red-500 transition-colors shadow-md"
-							title="Eliminar elemento"
-							style="pointer-events: auto;"
-						>
-							<Trash2 class="w-3 h-3 text-white" />
-						</button>
-						<div style="pointer-events: none;">
-							<GripVertical class="w-3 h-3 opacity-70 text-white drop-shadow-md" />
-						</div>
-					</div>
+					<!-- Delete button -->
+					<button
+						onmousedown={(e) => { e.stopPropagation(); onDeleteSelected(); }}
+						class="absolute top-1 right-1 z-20 flex items-center justify-center w-5 h-5 rounded bg-red-600 hover:bg-red-500 transition-colors shadow-md"
+						title="Eliminar elemento"
+						style="pointer-events: auto;"
+					>
+						<Trash2 class="w-3 h-3 text-white" />
+					</button>
+
+					<!-- Resize handles -->
+					{#each HANDLES as h}
+						<div
+							onmousedown={(e) => { e.stopPropagation(); onStartResize(e, el.id, h.dir); }}
+							style="position:absolute;width:8px;height:8px;background:#9147ff;border:1.5px solid #fff;border-radius:2px;z-index:20;pointer-events:auto;cursor:{h.cursor};{h.style}"
+							role="presentation"
+						></div>
+					{/each}
 				{/if}
 			</div>
 		{/each}

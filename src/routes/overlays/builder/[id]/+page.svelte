@@ -27,6 +27,8 @@
 	let selectedId = $state<string | null>(null);
 	let canvasWidth = $state(1920);
 	let canvasHeight = $state(1080);
+	let backgroundImage = $state<string | null>(null);
+	let backgroundType = $state<'image' | 'video' | null>(null);
 	let canvasAreaRef = $state<HTMLDivElement | null>(null);
 	let aiMessages = $state<AiMessage[]>([]);
 	let aiInput = $state('');
@@ -65,7 +67,7 @@
 			elements
 				.filter((el) => el.type === 'chat_highlight')
 				.map((el) => [el.id, [
-					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: 1, color: '#FF4500', badges: {}, fragments: [{ type: 'text', text: '¡Qué buen stream!' }] },
+					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: 1, color: '#FF4500', badges: {} as Record<string, string>, fragments: [{ type: 'text', text: '¡Qué buen stream!' }] },
 					{ display_name: 'ModUser',   message: 'Muy buen contenido!',  timestamp: 2, color: '#00C8AF', badges: { moderator: '1' }, fragments: [{ type: 'text', text: 'Muy buen contenido!' }] },
 				]])
 		)
@@ -80,7 +82,7 @@
 
 	async function load() {
 		try {
-			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number } } }>(
+			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number; background_image?: string | null; background_type?: 'image' | 'video' | null } } }>(
 				`/overlays/${overlayId}`
 			);
 			if (res.success) {
@@ -88,6 +90,8 @@
 				elements = res.data.config.elements ?? [];
 				canvasWidth = res.data.config.canvas_width ?? 1920;
 				canvasHeight = res.data.config.canvas_height ?? 1080;
+				backgroundImage = res.data.config.background_image ?? null;
+				backgroundType = res.data.config.background_type ?? null;
 			}
 		} catch {
 			show('Error al cargar', 'error');
@@ -97,10 +101,24 @@
 	async function save(notify = false) {
 		saving = true;
 		try {
-			await put(`/overlays/${overlayId}`, { name: overlayName, config: { elements, canvas_width: canvasWidth, canvas_height: canvasHeight } });
-			if (notify) show('Guardado', 'success');
-		} catch {
-			show('Error al guardar', 'error');
+			const res = await put<{ success: boolean; error?: string }>(`/overlays/${overlayId}`, { 
+				name: overlayName, 
+				config: { 
+					elements, 
+					canvas_width: canvasWidth, 
+					canvas_height: canvasHeight, 
+					background_image: backgroundImage, 
+					background_type: backgroundType 
+				} 
+			});
+			
+			if (res.success) {
+				if (notify) show('Guardado', 'success');
+			} else {
+				show(res.error ?? 'Error al guardar', 'error');
+			}
+		} catch (e: any) {
+			show(e.message ?? 'Error de conexión', 'error');
 		} finally {
 			saving = false;
 		}
@@ -134,6 +152,40 @@
 		elements = [...elements, copy];
 		selectedId = copy.id;
 		scheduleSave();
+	}
+
+	function startResize(e: MouseEvent, elId: string, dir: string) {
+		e.preventDefault();
+		selectedId = elId;
+		if (!canvasAreaRef) return;
+		const rect = canvasAreaRef.getBoundingClientRect();
+		const el = elements.find((el) => el.id === elId)!;
+		const startMouseX = e.clientX;
+		const startMouseY = e.clientY;
+		const startX = el.x, startY = el.y, startW = el.width, startH = el.height;
+		const MIN_W = 50, MIN_H = 30;
+
+		function onMove(me: MouseEvent) {
+			const dx = ((me.clientX - startMouseX) / rect.width)  * canvasWidth;
+			const dy = ((me.clientY - startMouseY) / rect.height) * canvasHeight;
+			let x = startX, y = startY, w = startW, h = startH;
+
+			if (dir.includes('e')) w = Math.max(MIN_W, startW + dx);
+			if (dir.includes('s')) h = Math.max(MIN_H, startH + dy);
+			if (dir.includes('w')) { w = Math.max(MIN_W, startW - dx); x = startX + startW - w; }
+			if (dir.includes('n')) { h = Math.max(MIN_H, startH - dy); y = startY + startH - h; }
+
+			elements = elements.map((item) =>
+				item.id === elId ? { ...item, x, y, width: w, height: h } : item
+			);
+		}
+		function onUp() {
+			document.removeEventListener('mousemove', onMove);
+			document.removeEventListener('mouseup', onUp);
+			scheduleSave();
+		}
+		document.addEventListener('mousemove', onMove);
+		document.addEventListener('mouseup', onUp);
 	}
 
 	function startDrag(e: MouseEvent, elId: string) {
@@ -248,7 +300,10 @@
 					chatMessages={previewChatMessages}
 					{canvasWidth}
 					{canvasHeight}
+					{backgroundImage}
+					{backgroundType}
 					onStartDrag={startDrag}
+					onStartResize={startResize}
 					onDeleteSelected={deleteSelected}
 				/>
 			</div>
@@ -262,11 +317,14 @@
 			/>
 		</div>
 
-		<PropertyEditor 
-			{selected} 
-			onUpdate={updateSelected} 
-			onDelete={deleteSelected} 
-			onDuplicate={duplicateSelected} 
+		<PropertyEditor
+			{selected}
+			onUpdate={updateSelected}
+			onDelete={deleteSelected}
+			onDuplicate={duplicateSelected}
+			{backgroundImage}
+			{backgroundType}
+			onUpdateBackground={(img, type) => { backgroundImage = img; backgroundType = type; scheduleSave(); }}
 		/>
 	</div>
 </div>

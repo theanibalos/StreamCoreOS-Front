@@ -2,20 +2,68 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import { Layers, Trash2, Copy } from '@lucide/svelte';
+	import { Layers, Trash2, Copy, ImageIcon, X, Loader } from '@lucide/svelte';
+	import { upload } from '$lib/core/api/client';
+	import { show } from '$lib/core/stores/toast.svelte';
+	import BackgroundGallery from './BackgroundGallery.svelte';
 	import type { OverlayElement, ElementStyle } from '../../index';
 
-	let { 
-		selected, 
-		onUpdate, 
-		onDelete, 
-		onDuplicate 
-	}: { 
+	let {
+		selected,
+		onUpdate,
+		onDelete,
+		onDuplicate,
+		backgroundImage = null,
+		backgroundType = null,
+		onUpdateBackground
+	}: {
 		selected: OverlayElement | null;
 		onUpdate: (updates: Partial<OverlayElement>) => void;
 		onDelete: () => void;
 		onDuplicate: () => void;
+		backgroundImage?: string | null;
+		backgroundType?: 'image' | 'video' | null;
+		onUpdateBackground: (img: string | null, type: 'image' | 'video' | null) => void;
 	} = $props();
+
+	let fileInputRef = $state<HTMLInputElement | null>(null);
+	let galleryRef = $state<{ load: () => void } | null>(null);
+	let dragOver = $state(false);
+	let uploading = $state(false);
+
+	async function handleFile(file: File) {
+		const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+		if (!allowed.includes(file.type)) {
+			show('Formato no soportado. Usá PNG, JPG, GIF, WebP, MP4 o WebM.', 'error');
+			return;
+		}
+		uploading = true;
+		try {
+			const res = await upload<{ success: boolean; data: { url: string; type: 'image' | 'video' }; error?: string }>(
+				'/overlays/upload-background', file
+			);
+			if (!res.success) throw new Error(res.error);
+			onUpdateBackground(res.data.url, res.data.type);
+			galleryRef?.load();
+		} catch (e: any) {
+			show(`Error al subir: ${e.message}`, 'error');
+		} finally {
+			uploading = false;
+		}
+	}
+
+	function onFileInput(e: Event) {
+		const file = (e.target as HTMLInputElement).files?.[0];
+		if (file) handleFile(file);
+		(e.target as HTMLInputElement).value = '';
+	}
+
+	function onDrop(e: DragEvent) {
+		e.preventDefault();
+		dragOver = false;
+		const file = e.dataTransfer?.files?.[0];
+		if (file) handleFile(file);
+	}
 
 	const ANIMATIONS: { value: ElementStyle['animation']; label: string }[] = [
 		{ value: 'scale_in', label: 'Escalar' },
@@ -50,8 +98,13 @@
 <div class="w-80 border-l bg-card/30 flex flex-col overflow-hidden">
 	<div class="p-4 border-b bg-card flex items-center justify-between">
 		<h3 class="text-sm font-semibold flex items-center gap-2">
-			<Layers class="w-4 h-4 text-primary" />
-			Propiedades
+			{#if selected}
+				<Layers class="w-4 h-4 text-primary" />
+				Propiedades
+			{:else}
+				<ImageIcon class="w-4 h-4 text-primary" />
+				Canvas
+			{/if}
 		</h3>
 		{#if selected}
 			<div class="flex items-center gap-1">
@@ -234,12 +287,90 @@
 				</div>
 			</div>
 		{:else}
-			<div class="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-6 gap-3 py-20">
-				<div class="w-12 h-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-					<Layers class="w-6 h-6 opacity-20" />
+			<!-- Canvas Settings (no element selected) -->
+			<div class="space-y-5">
+				<div>
+					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight">Fondo del Canvas</p>
+
+					<!-- Drop zone / uploader -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="relative rounded-lg border-2 border-dashed transition-colors overflow-hidden cursor-pointer {dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}"
+						style="min-height: 120px;"
+						ondragover={(e) => { e.preventDefault(); dragOver = true; }}
+						ondragleave={() => dragOver = false}
+						ondrop={onDrop}
+						onclick={() => fileInputRef?.click()}
+						role="button"
+						tabindex="0"
+						onkeydown={(e) => e.key === 'Enter' && fileInputRef?.click()}
+					>
+						{#if uploading}
+							<div class="flex flex-col items-center justify-center gap-2 py-8">
+								<Loader class="w-6 h-6 text-primary animate-spin" />
+								<p class="text-[10px] text-muted-foreground">Subiendo…</p>
+							</div>
+						{:else if backgroundImage && backgroundType === 'video'}
+							<video
+								src={backgroundImage}
+								autoplay loop muted playsinline
+								class="w-full h-full object-cover"
+								style="min-height: 120px; display: block; pointer-events: none;"
+							></video>
+							<div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+								<p class="text-white text-[10px] font-medium">Click para cambiar</p>
+							</div>
+						{:else if backgroundImage}
+							<img
+								src={backgroundImage}
+								alt="Fondo"
+								class="w-full h-full object-cover"
+								style="min-height: 120px; display: block;"
+							/>
+							<div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+								<p class="text-white text-[10px] font-medium">Click para cambiar</p>
+							</div>
+						{:else}
+							<div class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
+								<ImageIcon class="w-7 h-7 text-muted-foreground/40" />
+								<p class="text-[11px] text-muted-foreground">Arrastrá o clickeá para subir</p>
+								<p class="text-[9px] text-muted-foreground/50">PNG, JPG, GIF, WebP · MP4, WebM</p>
+							</div>
+						{/if}
+					</div>
+
+					<input
+						bind:this={fileInputRef}
+						type="file"
+						accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm"
+						class="hidden"
+						onchange={onFileInput}
+					/>
+
+					{#if backgroundImage}
+						<Button
+							variant="outline"
+							size="sm"
+							class="w-full mt-2 h-7 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+							onclick={() => onUpdateBackground(null, null)}
+						>
+							<X class="w-3 h-3 mr-1.5" /> Quitar imagen de fondo
+						</Button>
+					{/if}
+
+					<BackgroundGallery
+						bind:this={galleryRef}
+						currentImage={backgroundImage}
+						onSelect={(url, type) => onUpdateBackground(url, type)}
+					/>
 				</div>
-				<p class="text-xs font-medium">Sin selección</p>
-				<p class="text-[10px] opacity-60">Seleccioná un elemento en el canvas para editar sus propiedades</p>
+
+				<div class="pt-2 border-t text-center text-muted-foreground">
+					<div class="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-2">
+						<Layers class="w-5 h-5 opacity-20" />
+					</div>
+					<p class="text-[10px] opacity-60">Seleccioná un elemento para editar sus propiedades</p>
+				</div>
 			</div>
 		{/if}
 	</div>
