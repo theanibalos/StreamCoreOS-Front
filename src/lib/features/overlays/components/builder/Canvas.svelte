@@ -2,6 +2,7 @@
 	import { Trash2 } from '@lucide/svelte';
 	import { WIDGET_REGISTRY } from '../../index';
 	import type { OverlayElement, ActiveAlert, ChatMessage } from '../../index';
+	import { onMount } from 'svelte';
 
 	let {
 		elements,
@@ -45,21 +46,38 @@
 		{ dir: 'w',  style: 'top:50%;left:0;transform:translate(-50%,-50%)',  cursor: 'ew-resize' },
 	];
 
-	const aspectRatio = $derived(`${canvasWidth}/${canvasHeight}`);
-	const canvasStyle = $derived(
-		`aspect-ratio: ${aspectRatio}; height: min(calc(100% - 0px), calc((100vw - 380px) * ${canvasHeight} / ${canvasWidth})); max-height: 100%;`
-	);
+	let containerRef = $state<HTMLDivElement | null>(null);
+	let scale = $state(1);
+
+	function updateScale() {
+		if (containerRef) {
+			const containerWidth = containerRef.clientWidth;
+			const containerHeight = containerRef.clientHeight;
+			// We want to fit the canvasWidth x canvasHeight inside the container
+			scale = Math.min(
+				containerWidth / canvasWidth,
+				containerHeight / canvasHeight
+			) * 0.95; // 0.95 to leave a small margin
+		}
+	}
+
+	onMount(() => {
+		updateScale();
+		const observer = new ResizeObserver(updateScale);
+		if (containerRef) observer.observe(containerRef);
+		return () => observer.disconnect();
+	});
 
 	function elStyle(el: OverlayElement): string {
 		const isSelected = el.id === selectedId;
 		return [
 			'position: absolute',
-			`left: ${(el.x / canvasWidth) * 100}%`,
-			`top: ${(el.y / canvasHeight) * 100}%`,
-			`width: ${(el.width / canvasWidth) * 100}%`,
-			`height: ${(el.height / canvasHeight) * 100}%`,
+			`left: ${el.x}px`,
+			`top: ${el.y}px`,
+			`width: ${el.width}px`,
+			`height: ${el.height}px`,
 			'cursor: move',
-			isSelected ? 'outline: 2px solid #9147ff' : 'outline: 1px solid rgba(255,255,255,0.15)',
+			isSelected ? 'outline: 4px solid #9147ff' : 'outline: 1px solid rgba(255,255,255,0.3)',
 			'z-index: ' + (isSelected ? '50' : '10'),
 			'box-sizing: border-box',
 			'user-select: none'
@@ -67,10 +85,17 @@
 	}
 </script>
 
-<div class="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4 h-full">
-	<div
-		class="relative bg-black rounded overflow-hidden shadow-2xl"
-		style="{canvasStyle}{backgroundImage && backgroundType !== 'video' ? `; background-image: url('${backgroundImage}'); background-size: cover; background-position: center;` : ''}"
+<div class="flex-1 overflow-hidden bg-muted/30 flex items-center justify-center p-4 h-full" bind:this={containerRef}>
+	<!-- Scaled Canvas Container -->
+	<div 
+		style="
+			width: {canvasWidth}px; 
+			height: {canvasHeight}px; 
+			transform: scale({scale}); 
+			transform-origin: center;
+			flex-shrink: 0;
+		"
+		class="relative bg-black shadow-2xl overflow-hidden"
 		bind:this={canvasRef}
 		onmousedown={(e) => { if (e.target === e.currentTarget) selectedId = null; }}
 		role="presentation"
@@ -85,8 +110,12 @@
 			></video>
 		{/if}
 
+		{#if backgroundImage && backgroundType !== 'video'}
+			<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{backgroundImage}'); z-index: 0;"></div>
+		{/if}
+
 		<!-- Grid overlay -->
-		<div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 10% 10%;"></div>
+		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 50px 50px; z-index: 1;"></div>
 
 		{#each elements as el (el.id)}
 			{@const Widget = WIDGET_REGISTRY[el.type]}
@@ -112,18 +141,18 @@
 					<!-- Delete button -->
 					<button
 						onmousedown={(e) => { e.stopPropagation(); onDeleteSelected(); }}
-						class="absolute top-1 right-1 z-20 flex items-center justify-center w-5 h-5 rounded bg-red-600 hover:bg-red-500 transition-colors shadow-md"
+						class="absolute top-2 right-2 z-20 flex items-center justify-center w-8 h-8 rounded bg-red-600 hover:bg-red-500 transition-colors shadow-md"
 						title="Eliminar elemento"
 						style="pointer-events: auto;"
 					>
-						<Trash2 class="w-3 h-3 text-white" />
+						<Trash2 class="w-5 h-5 text-white" />
 					</button>
 
 					<!-- Resize handles -->
 					{#each HANDLES as h}
 						<div
 							onmousedown={(e) => { e.stopPropagation(); onStartResize(e, el.id, h.dir); }}
-							style="position:absolute;width:8px;height:8px;background:#9147ff;border:1.5px solid #fff;border-radius:2px;z-index:20;pointer-events:auto;cursor:{h.cursor};{h.style}"
+							style="position:absolute;width:12px;height:12px;background:#9147ff;border:2px solid #fff;border-radius:3px;z-index:20;pointer-events:auto;cursor:{h.cursor};{h.style}"
 							role="presentation"
 						></div>
 					{/each}
@@ -132,8 +161,8 @@
 		{/each}
 
 		{#if elements.length === 0}
-			<div class="absolute inset-0 flex items-center justify-center text-white/30 text-sm font-medium pointer-events-none px-10 text-center">
-				Añade elementos desde la toolbar izquierda o pídele a la IA que lo haga por ti
+			<div class="absolute inset-0 flex items-center justify-center text-white/30 text-4xl font-medium pointer-events-none px-20 text-center">
+				Añade elementos desde la barra lateral
 			</div>
 		{/if}
 	</div>

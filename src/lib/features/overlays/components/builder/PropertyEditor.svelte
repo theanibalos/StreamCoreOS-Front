@@ -2,7 +2,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import { Layers, Trash2, Copy, ImageIcon, X, Loader } from '@lucide/svelte';
+	import { Layers, Trash2, Copy, ImageIcon, X, Loader, ChevronUp, ChevronDown, Maximize, Minimize, Expand } from '@lucide/svelte';
 	import { upload } from '$lib/core/api/client';
 	import { show } from '$lib/core/stores/toast.svelte';
 	import BackgroundGallery from './BackgroundGallery.svelte';
@@ -13,22 +13,20 @@
 		onUpdate,
 		onDelete,
 		onDuplicate,
-		backgroundImage = null,
-		backgroundType = null,
-		onUpdateBackground
+		onMoveLayer,
+		canvasWidth = 1920,
+		canvasHeight = 1080
 	}: {
 		selected: OverlayElement | null;
 		onUpdate: (updates: Partial<OverlayElement>) => void;
 		onDelete: () => void;
 		onDuplicate: () => void;
-		backgroundImage?: string | null;
-		backgroundType?: 'image' | 'video' | null;
-		onUpdateBackground: (img: string | null, type: 'image' | 'video' | null) => void;
+		onMoveLayer: (dir: 'up' | 'down' | 'front' | 'back') => void;
+		canvasWidth?: number;
+		canvasHeight?: number;
 	} = $props();
 
 	let fileInputRef = $state<HTMLInputElement | null>(null);
-	let galleryRef = $state<{ load: () => void } | null>(null);
-	let dragOver = $state(false);
 	let uploading = $state(false);
 
 	async function handleFile(file: File) {
@@ -43,8 +41,7 @@
 				'/overlays/upload-background', file
 			);
 			if (!res.success) throw new Error(res.error);
-			onUpdateBackground(res.data.url, res.data.type);
-			galleryRef?.load();
+			updateConfig({ url: res.data.url });
 		} catch (e: any) {
 			show(`Error al subir: ${e.message}`, 'error');
 		} finally {
@@ -58,11 +55,14 @@
 		(e.target as HTMLInputElement).value = '';
 	}
 
-	function onDrop(e: DragEvent) {
-		e.preventDefault();
-		dragOver = false;
-		const file = e.dataTransfer?.files?.[0];
-		if (file) handleFile(file);
+	function fitToCanvas() {
+		onUpdate({
+			x: 0,
+			y: 0,
+			width: canvasWidth,
+			height: canvasHeight
+		});
+		onMoveLayer('back');
 	}
 
 	const ANIMATIONS: { value: ElementStyle['animation']; label: string }[] = [
@@ -70,6 +70,23 @@
 		{ value: 'fade_in', label: 'Desvanecer' },
 		{ value: 'slide_up', label: 'Deslizar arriba' },
 		{ value: 'slide_down', label: 'Deslizar abajo' }
+	];
+
+	const STAT_SOURCES = [
+		{ value: 'subscribers.active_total', label: 'Suscriptores Activos' },
+		{ value: 'followers.total',          label: 'Total de Seguidores' },
+		{ value: 'stream.viewer_count',      label: 'Espectadores Actuales' },
+		{ value: 'bits.total',               label: 'Total de Bits' },
+		{ value: 'stream.online',            label: 'Estado Online (true/false)' }
+	];
+
+	const ALERT_EVENTS = [
+		{ value: 'channel.follow',            label: 'Seguimiento (Follow)' },
+		{ value: 'channel.subscribe',         label: 'Suscripción / Resub' },
+		{ value: 'channel.subscription.gift', label: 'Sub Regalada' },
+		{ value: 'channel.cheer',             label: 'Bits (Cheer)' },
+		{ value: 'channel.raid',              label: 'Raid' },
+		{ value: 'chat.message',              label: 'Mensaje de Chat' }
 	];
 
 	function updateStyle(styleUpdates: Partial<ElementStyle>) {
@@ -133,7 +150,25 @@
 
 				<!-- Size & Position -->
 				<div>
-					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight">Posición y Tamaño</p>
+					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight flex items-center justify-between">
+						Orden de Capas
+					</p>
+					<div class="grid grid-cols-4 gap-1 mb-4">
+						<Button variant="outline" size="icon" class="h-8 w-full" onclick={() => onMoveLayer('back')} title="Enviar al fondo">
+							<Minimize class="w-3.5 h-3.5" />
+						</Button>
+						<Button variant="outline" size="icon" class="h-8 w-full" onclick={() => onMoveLayer('down')} title="Bajar una capa">
+							<ChevronDown class="w-3.5 h-3.5" />
+						</Button>
+						<Button variant="outline" size="icon" class="h-8 w-full" onclick={() => onMoveLayer('up')} title="Subir una capa">
+							<ChevronUp class="w-3.5 h-3.5" />
+						</Button>
+						<Button variant="outline" size="icon" class="h-8 w-full" onclick={() => onMoveLayer('front')} title="Traer al frente">
+							<Maximize class="w-3.5 h-3.5" />
+						</Button>
+					</div>
+
+					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight text-left">Posición y Tamaño</p>
 					<div class="grid grid-cols-2 gap-3">
 						<div class="space-y-1.5">
 							<Label class="text-[10px] text-muted-foreground ml-1">X (px)</Label>
@@ -154,11 +189,53 @@
 					</div>
 				</div>
 
-				<!-- Specific Config -->
+				{#if selected.type === 'media'}
+					<div class="space-y-4">
+						<div>
+							<p class="text-xs font-medium text-muted-foreground mb-2">Archivo Media</p>
+							<div class="grid grid-cols-2 gap-2">
+								<Button variant="outline" size="sm" class="h-8 text-[10px]" onclick={() => fileInputRef?.click()} disabled={uploading}>
+									{#if uploading}
+										<Loader class="w-3 h-3 mr-1.5 animate-spin" /> Subiendo…
+									{:else}
+										<ImageIcon class="w-3 h-3 mr-1.5" /> Subir archivo
+										{/if}
+										</Button>								<Button variant="secondary" size="sm" class="h-8 text-[10px]" onclick={fitToCanvas}>
+									<Expand class="w-3 h-3 mr-1.5" /> Fondo total
+								</Button>
+							</div>
+							<input bind:this={fileInputRef} type="file" class="hidden" onchange={onFileInput} />
+						</div>
+
+						<div>
+							<p class="text-xs font-medium text-muted-foreground mb-2 text-center opacity-50">— O URL directa —</p>
+							<Input 
+								class="h-8 text-xs font-mono" 
+								placeholder="https://... o /api/uploads/..." 
+								value={selected.config?.url} 
+								oninput={(e) => updateConfig({ url: (e.target as HTMLInputElement).value })} 
+							/>
+						</div>
+
+						<BackgroundGallery
+							currentImage={selected.config?.url}
+							onSelect={(url) => updateConfig({ url })}
+						/>
+					</div>
+				{/if}
+
 				{#if selected.type === 'alert'}
 					<div>
 						<p class="text-xs font-medium text-muted-foreground mb-2">Evento</p>
-						<Input class="h-8 text-xs" value={selected.trigger?.event} oninput={(e) => onUpdate({ trigger: { ...selected.trigger!, event: (e.target as HTMLInputElement).value } })} />
+						<select
+							class="w-full h-8 rounded-md border bg-background px-2 text-xs"
+							value={selected.trigger?.event}
+							onchange={(e) => onUpdate({ trigger: { ...selected.trigger!, event: (e.target as HTMLSelectElement).value } })}
+						>
+							{#each ALERT_EVENTS as ev}
+								<option value={ev.value}>{ev.label}</option>
+							{/each}
+						</select>
 					</div>
 					<div>
 						<p class="text-xs font-medium text-muted-foreground mb-2">Filtro usuario (opcional)</p>
@@ -169,7 +246,15 @@
 				{#if selected.type === 'stat' || selected.type === 'progress_bar'}
 					<div>
 						<p class="text-xs font-medium text-muted-foreground mb-2">Fuente de datos</p>
-						<Input class="h-8 text-xs" value={selected.data_source} oninput={(e) => onUpdate({ data_source: (e.target as HTMLInputElement).value })} />
+						<select
+							class="w-full h-8 rounded-md border bg-background px-2 text-xs"
+							value={selected.data_source}
+							onchange={(e) => onUpdate({ data_source: (e.target as HTMLSelectElement).value })}
+						>
+							{#each STAT_SOURCES as src}
+								<option value={src.value}>{src.label}</option>
+							{/each}
+						</select>
 					</div>
 				{/if}
 
@@ -289,87 +374,11 @@
 		{:else}
 			<!-- Canvas Settings (no element selected) -->
 			<div class="space-y-5">
-				<div>
-					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight">Fondo del Canvas</p>
-
-					<!-- Drop zone / uploader -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div
-						class="relative rounded-lg border-2 border-dashed transition-colors overflow-hidden cursor-pointer {dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'}"
-						style="min-height: 120px;"
-						ondragover={(e) => { e.preventDefault(); dragOver = true; }}
-						ondragleave={() => dragOver = false}
-						ondrop={onDrop}
-						onclick={() => fileInputRef?.click()}
-						role="button"
-						tabindex="0"
-						onkeydown={(e) => e.key === 'Enter' && fileInputRef?.click()}
-					>
-						{#if uploading}
-							<div class="flex flex-col items-center justify-center gap-2 py-8">
-								<Loader class="w-6 h-6 text-primary animate-spin" />
-								<p class="text-[10px] text-muted-foreground">Subiendo…</p>
-							</div>
-						{:else if backgroundImage && backgroundType === 'video'}
-							<video
-								src={backgroundImage}
-								autoplay loop muted playsinline
-								class="w-full h-full object-cover"
-								style="min-height: 120px; display: block; pointer-events: none;"
-							></video>
-							<div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-								<p class="text-white text-[10px] font-medium">Click para cambiar</p>
-							</div>
-						{:else if backgroundImage}
-							<img
-								src={backgroundImage}
-								alt="Fondo"
-								class="w-full h-full object-cover"
-								style="min-height: 120px; display: block;"
-							/>
-							<div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-								<p class="text-white text-[10px] font-medium">Click para cambiar</p>
-							</div>
-						{:else}
-							<div class="flex flex-col items-center justify-center gap-2 py-8 px-4 text-center">
-								<ImageIcon class="w-7 h-7 text-muted-foreground/40" />
-								<p class="text-[11px] text-muted-foreground">Arrastrá o clickeá para subir</p>
-								<p class="text-[9px] text-muted-foreground/50">PNG, JPG, GIF, WebP · MP4, WebM</p>
-							</div>
-						{/if}
-					</div>
-
-					<input
-						bind:this={fileInputRef}
-						type="file"
-						accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm"
-						class="hidden"
-						onchange={onFileInput}
-					/>
-
-					{#if backgroundImage}
-						<Button
-							variant="outline"
-							size="sm"
-							class="w-full mt-2 h-7 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
-							onclick={() => onUpdateBackground(null, null)}
-						>
-							<X class="w-3 h-3 mr-1.5" /> Quitar imagen de fondo
-						</Button>
-					{/if}
-
-					<BackgroundGallery
-						bind:this={galleryRef}
-						currentImage={backgroundImage}
-						onSelect={(url, type) => onUpdateBackground(url, type)}
-					/>
-				</div>
-
-				<div class="pt-2 border-t text-center text-muted-foreground">
+				<div class="pt-2 text-center text-muted-foreground">
 					<div class="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-2">
 						<Layers class="w-5 h-5 opacity-20" />
 					</div>
-					<p class="text-[10px] opacity-60">Seleccioná un elemento para editar sus propiedades</p>
+					<p class="text-[10px] opacity-60">Seleccioná un elemento para editar sus propiedades o añadí uno nuevo desde la izquierda</p>
 				</div>
 			</div>
 		{/if}

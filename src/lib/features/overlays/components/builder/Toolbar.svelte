@@ -5,18 +5,20 @@
 		BarChart2, 
 		MessageSquare, 
 		Type, 
-		TrendingUp 
+		TrendingUp,
+		ImageIcon
 	} from '@lucide/svelte';
 	import type { OverlayElement } from '../../index';
 
 	let { onAdd }: { onAdd: (type: OverlayElement['type']) => void } = $props();
 
-	const TOOLBAR_ITEMS: { type: OverlayElement['type']; icon: Component; label: string }[] = [
+	const TOOLBAR_ITEMS: { type: OverlayElement['type']; icon: any; label: string }[] = [
 		{ type: 'alert',          icon: Zap,           label: 'Alerta' },
 		{ type: 'stat',           icon: BarChart2,     label: 'Dato' },
 		{ type: 'chat_highlight', icon: MessageSquare, label: 'Chat' },
 		{ type: 'banner',         icon: Type,          label: 'Texto' },
 		{ type: 'progress_bar',   icon: TrendingUp,    label: 'Meta' },
+		{ type: 'media',          icon: ImageIcon,     label: 'Media' },
 	];
 </script>
 

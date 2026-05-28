@@ -22,6 +22,7 @@
 		color: {color};
 		font-size: {fs}px;
 		opacity: {opacity};
+		padding: 8px 20px;
 	"
 >
 	{element.template}

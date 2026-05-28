@@ -27,8 +27,6 @@
 	let selectedId = $state<string | null>(null);
 	let canvasWidth = $state(1920);
 	let canvasHeight = $state(1080);
-	let backgroundImage = $state<string | null>(null);
-	let backgroundType = $state<'image' | 'video' | null>(null);
 	let canvasAreaRef = $state<HTMLDivElement | null>(null);
 	let aiMessages = $state<AiMessage[]>([]);
 	let aiInput = $state('');
@@ -82,7 +80,7 @@
 
 	async function load() {
 		try {
-			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number; background_image?: string | null; background_type?: 'image' | 'video' | null } } }>(
+			const res = await get<{ success: boolean; data: { name: string; config: { elements: OverlayElement[]; canvas_width?: number; canvas_height?: number } } }>(
 				`/overlays/${overlayId}`
 			);
 			if (res.success) {
@@ -90,8 +88,6 @@
 				elements = res.data.config.elements ?? [];
 				canvasWidth = res.data.config.canvas_width ?? 1920;
 				canvasHeight = res.data.config.canvas_height ?? 1080;
-				backgroundImage = res.data.config.background_image ?? null;
-				backgroundType = res.data.config.background_type ?? null;
 			}
 		} catch {
 			show('Error al cargar', 'error');
@@ -106,9 +102,7 @@
 				config: { 
 					elements, 
 					canvas_width: canvasWidth, 
-					canvas_height: canvasHeight, 
-					background_image: backgroundImage, 
-					background_type: backgroundType 
+					canvas_height: canvasHeight 
 				} 
 			});
 			
@@ -126,7 +120,7 @@
 
 	function addElement(type: OverlayElement['type']) {
 		const el = createOverlayElement(type);
-		// Center within the configured canvas instead of using 1920×1080 defaults
+		// Center within the configured canvas
 		el.x = Math.max(0, Math.round((canvasWidth - el.width) / 2));
 		el.y = Math.max(0, Math.round((canvasHeight - el.height) / 2));
 		elements = [...elements, el];
@@ -166,8 +160,10 @@
 		const MIN_W = 50, MIN_H = 30;
 
 		function onMove(me: MouseEvent) {
-			const dx = ((me.clientX - startMouseX) / rect.width)  * canvasWidth;
-			const dy = ((me.clientY - startMouseY) / rect.height) * canvasHeight;
+			// DX and DY need to be adjusted by the current scale of the canvas
+			const scale = rect.width / canvasWidth;
+			const dx = (me.clientX - startMouseX) / scale;
+			const dy = (me.clientY - startMouseY) / scale;
 			let x = startX, y = startY, w = startW, h = startH;
 
 			if (dir.includes('e')) w = Math.max(MIN_W, startW + dx);
@@ -200,8 +196,9 @@
 		const startElY = el.y;
 
 		function onMove(me: MouseEvent) {
-			const dx = ((me.clientX - startMouseX) / rect.width) * canvasWidth;
-			const dy = ((me.clientY - startMouseY) / rect.height) * canvasHeight;
+			const scale = rect.width / canvasWidth;
+			const dx = (me.clientX - startMouseX) / scale;
+			const dy = (me.clientY - startMouseY) / scale;
 			elements = elements.map((item) =>
 				item.id === elId
 					? {
@@ -224,6 +221,23 @@
 	function updateSelected(patch: Partial<OverlayElement>) {
 		if (!selectedId) return;
 		elements = elements.map((el) => (el.id === selectedId ? { ...el, ...patch } : el));
+		scheduleSave();
+	}
+
+	function moveLayer(dir: 'up' | 'down' | 'front' | 'back') {
+		if (!selectedId) return;
+		const idx = elements.findIndex(el => el.id === selectedId);
+		if (idx === -1) return;
+
+		let next = [...elements];
+		const el = next.splice(idx, 1)[0];
+
+		if (dir === 'up') next.splice(Math.min(elements.length - 1, idx + 1), 0, el);
+		else if (dir === 'down') next.splice(Math.max(0, idx - 1), 0, el);
+		else if (dir === 'front') next.push(el);
+		else if (dir === 'back') next.unshift(el);
+
+		elements = next;
 		scheduleSave();
 	}
 
@@ -300,8 +314,6 @@
 					chatMessages={previewChatMessages}
 					{canvasWidth}
 					{canvasHeight}
-					{backgroundImage}
-					{backgroundType}
 					onStartDrag={startDrag}
 					onStartResize={startResize}
 					onDeleteSelected={deleteSelected}
@@ -322,9 +334,9 @@
 			onUpdate={updateSelected}
 			onDelete={deleteSelected}
 			onDuplicate={duplicateSelected}
-			{backgroundImage}
-			{backgroundType}
-			onUpdateBackground={(img, type) => { backgroundImage = img; backgroundType = type; scheduleSave(); }}
+			onMoveLayer={moveLayer}
+			{canvasWidth}
+			{canvasHeight}
 		/>
 	</div>
 </div>

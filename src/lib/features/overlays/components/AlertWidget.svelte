@@ -48,26 +48,28 @@
 {#each myAlerts as alert (alert.expiresAt)}
 	{@const t = inTransition(element.style.animation)}
 	<div
-		class="alert-root"
-		style="
-			background: {bg};
-			border-radius: {radius}px;
-			border: 2px solid {accent}55;
-			box-shadow: {glow ? `0 0 50px ${accent}55, inset 0 0 30px ${accent}11` : 'none'};
-			color: {color};
-			font-size: {fs}px;
-			opacity: {opacity};
-		"
-		in:t.fn={t.params}
-		out:fade={{ duration: 300 }}
-	>
-		<div class="alert-badge" style="background: {accent}22; border: 1px solid {accent}55; color: {accent};">
-			{eventLabel}
-		</div>
-		<p class="alert-name">
-			{renderTemplate(element.template, alert.vars)}
-		</p>
+	class="alert-root"
+	style="
+		background: {bg};
+		border-radius: {radius}px;
+		border: 2px solid {accent}55;
+		box-shadow: {glow ? `0 0 50px ${accent}55, inset 0 0 30px ${accent}11` : 'none'};
+		color: {color};
+		font-size: {fs}px;
+		opacity: {opacity};
+		gap: 10px;
+		padding: 16px 24px;
+	"
+	in:t.fn={t.params}
+	out:fade={{ duration: 300 }}
+>
+	<div class="alert-badge" style="background: {accent}22; border: 1px solid {accent}55; color: {accent};">
+		{eventLabel}
 	</div>
+	<p class="alert-name">
+		{renderTemplate(element.template, alert.vars)}
+	</p>
+</div>
 {/each}
 
 <style>

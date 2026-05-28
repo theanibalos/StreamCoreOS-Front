@@ -58,13 +58,17 @@
 		border-radius: {radius}px;
 		box-shadow: {glow ? `0 0 20px ${accent}44` : 'none'};
 		opacity: {opacity};
+		gap: 0.2em;
+		padding: 0.5em 0.25em;
 	"
 >
 	{#each msgs as msg (msg.timestamp)}
 		{@const badges = getBadges(msg)}
 		{@const frags  = getFragments(msg)}
 		{@const color  = getColor(msg)}
-		<div class="chat-msg" in:fly={{ y: 16, duration: 250 }}>
+		<div class="chat-msg" in:fly={{ y: 16, duration: 250 }}
+			style="font-size: 15px; padding: 0.25em 0.6em; border-radius: 4px;"
+		>
 			{#if badges.length > 0}
 				<span class="badge-row">
 					{#each badges as badge (badge.title)}
@@ -103,8 +107,6 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
-		gap: 0.2em;
-		padding: 0.5em 0.25em;
 		box-sizing: border-box;
 		overflow: hidden;
 		background: transparent;
@@ -115,11 +117,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0;
-		padding: 0.25em 0.6em;
-		border-radius: 4px;
 		background: rgba(24, 24, 27, 0.82);
 		font-family: Inter, Roobert, 'Helvetica Neue', sans-serif;
-		font-size: clamp(11px, 2vmin, 18px);
 		line-height: 1.5;
 		word-break: break-word;
 	}
@@ -128,7 +127,6 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 2px;
-		margin-right: 4px;
 		vertical-align: middle;
 		position: relative;
 		top: -1px;
@@ -136,8 +134,6 @@
 	}
 
 	.badge-img {
-		width: 18px;
-		height: 18px;
 		display: inline;
 	}
 
@@ -148,7 +144,6 @@
 
 	.chat-colon {
 		color: #adadb8;
-		margin: 0 3px 0 1px;
 		flex-shrink: 0;
 	}
 
@@ -161,7 +156,6 @@
 
 	.emote-img {
 		display: inline;
-		height: 28px;
 		width: auto;
 		vertical-align: middle;
 		margin: 0 1px;
@@ -170,7 +164,6 @@
 	.chat-empty {
 		margin: 0;
 		color: #adadb8;
-		font-size: 12px;
 		font-family: Inter, sans-serif;
 		text-align: center;
 		opacity: 0.5;

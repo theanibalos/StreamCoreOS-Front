@@ -33,6 +33,7 @@
 		color: {color};
 		font-size: {fs}px;
 		opacity: {opacity};
+		padding: 8px 16px;
 	"
 >
 	{renderTemplate(element.template, { value })}

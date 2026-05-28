@@ -17,7 +17,13 @@
 	let elements       = $state<OverlayElement[]>([]);
 	let activeAlerts   = $state<ActiveAlert[]>([]);
 	let chatMessages   = $state<Record<string, ChatMessage[]>>({});
+	
+	/**
+	 * statValues stores data by SOURCE KEY (e.g., 'subscribers.active_total')
+	 * NOT by element.id. This ensures all widgets sharing a source update together.
+	 */
 	let statValues     = $state<Record<string, string>>({});
+	
 	let loaded         = $state(false);
 	let loadError      = $state<string | null>(null);
 	let canvasWidth    = $state(1920);
@@ -25,63 +31,69 @@
 	let backgroundImage = $state<string | null>(null);
 	let backgroundType  = $state<'image' | 'video' | null>(null);
 
-	function applyConfig(config: any) {
+	// Diagnostic state for OBS
+	let version        = $state(0);
+	let lastSync       = $state<string>('--:--');
+	let connected      = $state(false);
+
+	/**
+	 * Takes a new configuration and fresh live data, then applies them atomically.
+	 */
+	function applyAtomicUpdate(config: any, liveData?: Record<string, any>) {
 		if (!config) return;
+		
+		const nextElements = config.elements ?? [];
+		const nextStats: Record<string, string> = { ...statValues };
+
+		if (liveData) {
+			console.log('[SCO] Mapping fresh stats:', liveData);
+			for (const k in liveData) {
+				nextStats[k] = String(liveData[k]);
+			}
+		}
+
 		flushSync(() => {
-			elements        = config.elements        ?? [];
+			elements        = nextElements;
+			statValues      = nextStats;
 			canvasWidth     = config.canvas_width    ?? 1920;
 			canvasHeight    = config.canvas_height   ?? 1080;
 			backgroundImage = config.background_image ?? null;
 			backgroundType  = config.background_type  ?? null;
+			
 			initChatSlots();
+			version++; 
 			loaded = true;
+			lastSync = new Date().toLocaleTimeString();
 		});
+		
+		console.log('[SCO] Atomic update applied. Elements:', elements.length, 'Stats cached:', Object.keys(statValues).length);
 	}
 
-	// ── Load overlay config ───────────────────────────────────────────────────
-	async function loadConfig() {
+	// ── Data Fetching ────────────────────────────────────────────────────────
+	
+	async function refreshEverything() {
 		if (!overlayId) return;
 		try {
-			const res = await get<{ success: boolean; data: { config: any }; error?: string }>(
-				`/overlays/${overlayId}/config?_=${Date.now()}`
-			);
+			const res = await get<{ success: boolean; data: { config: any, stats: any } }>(`/overlays/${overlayId}/config?_=${Date.now()}`);
+
 			if (res.success) {
-				applyConfig(res.data.config);
-				if (isPreview) {
-					applyPreviewData();
-				} else {
-					await loadInitialStats();
-				}
+				applyAtomicUpdate(res.data.config, res.data.stats);
+				if (isPreview) applyPreviewData();
 			} else {
 				loadError = res.error ?? 'Error al cargar';
 			}
 		} catch (e: any) {
+			console.error('[SCO] Refresh error:', e);
 			loadError = e.message ?? 'Error de red';
 		}
 		loaded = true;
 	}
 
-	async function loadInitialStats() {
-		try {
-			const res = await get<{ success: boolean; data: Record<string, string | number | boolean> }>('/overlays/data');
-			if (!res.success) return;
-			const next: Record<string, string> = {};
-			for (const el of elements) {
-				if ((el.type === 'stat' || el.type === 'progress_bar') && el.data_source) {
-					const val = res.data[el.data_source];
-					if (val !== undefined) next[el.id] = String(val);
-				}
-			}
-			statValues = next;
-		} catch { /* ignore */ }
-	}
-
 	function applyPreviewData() {
-		const next: Record<string, string> = {};
-		for (const el of elements) {
-			if ((el.type === 'stat' || el.type === 'progress_bar') && el.data_source) {
-				next[el.id] = PREVIEW_STAT_VALUES[el.data_source] ?? '42';
-			}
+		const next: Record<string, string> = { ...statValues };
+		// In preview, we populate common source keys with sample data
+		for (const key in PREVIEW_STAT_VALUES) {
+			next[key] = PREVIEW_STAT_VALUES[key];
 		}
 		statValues = next;
 		
@@ -110,6 +122,8 @@
 		}
 		chatMessages = slots;
 	}
+
+	// ── Real-time Connections ─────────────────────────────────────────────────
 
 	function connectChat() {
 		return sse('/chat/stream', (msg: any) => {
@@ -143,68 +157,126 @@
 
 	function connectStats() {
 		const id = overlayId;
+		connected = false;
 		return sse(`/overlays/stats?_=${Date.now()}`, (raw: any) => {
+			connected = true;
+			
+			// Case A: ATOMIC DESIGN + STATS PUSH
 			if (raw.__type === 'config_updated') {
-				if (Number(raw.overlay_id) === Number(id) && raw.config) {
-					applyConfig(raw.config);
-					// Re-populate stats after config change
-					loadInitialStats();
+				if (String(raw.overlay_id) === String(id) && raw.config) {
+					console.log('[SCO] Design update received via SSE');
+					applyAtomicUpdate(raw.config, raw.stats);
 				}
 				return;
 			}
+			
+			// Case B: STAT UPDATE (Subs, followers, bits, etc.)
 			const next: Record<string, string> = { ...statValues };
-			for (const el of elements) {
-				if ((el.type !== 'stat' && el.type !== 'progress_bar') || !el.data_source) continue;
-				const val = raw[el.data_source];
-				if (val !== undefined) next[el.id] = String(val);
+			let changed = false;
+			for (const key in raw) {
+				if (key.startsWith('__')) continue; // Skip internal keys
+				if (String(raw[key]) !== next[key]) {
+					next[key] = String(raw[key]);
+					changed = true;
+				}
 			}
-			statValues = next;
+			if (changed) {
+				statValues = next;
+				lastSync = new Date().toLocaleTimeString();
+			}
 		});
 	}
 
+	// ── Lifecycle ─────────────────────────────────────────────────────────────
+
 	onMount(() => {
-		loadConfig();
+		console.log('[SCO] Live overlay mounted. ID:', overlayId);
+		refreshEverything();
+
 		const stops = [
 			isPreview ? () => {} : connectChat(),
 			isPreview ? () => {} : connectAlerts(),
 			isPreview ? () => {} : connectStats()
 		];
-		const interval = setInterval(loadConfig, 5000);
+
+		// Polling interval for OBS as safety net
+		const interval = setInterval(refreshEverything, 10000);
+
 		return () => {
 			stops.forEach(s => s());
 			clearInterval(interval);
 		};
 	});
 
-	function wrapperStyle(el: OverlayElement): string {
+	function wrapperStyle(el: OverlayElement, index: number): string {
 		return [
 			'position: absolute',
 			`left: ${(el.x / canvasWidth) * 100}%`,
 			`top: ${(el.y / canvasHeight) * 100}%`,
 			`width: ${(el.width / canvasWidth) * 100}%`,
-			`height: ${(el.height / canvasHeight) * 100}%`
+			`height: ${(el.height / canvasHeight) * 100}%`,
+			`z-index: ${10 + index}`
 		].join(';');
 	}
 </script>
 
 {#if loaded}
-	<div class="canvas" style={backgroundImage && backgroundType !== 'video' ? `background-image: url('${backgroundImage}'); background-size: cover; background-position: center;` : ''}>
-		{#if backgroundImage && backgroundType === 'video'}
-			<video src={backgroundImage} autoplay loop muted playsinline style="position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1;"></video>
-		{/if}
+	<div class="canvas" style="--overlay-scale: 1;">
+		{#key version}
+			{#each elements as el, i (el.id)}
+				{@const Widget = WIDGET_REGISTRY[el.type]}
+				{#if Widget}
+					<div style={wrapperStyle(el, i)}>
+						<Widget 
+							element={el} 
+							statValues={el.data_source ? { [el.id]: statValues[el.data_source] ?? '0' } : {}}
+							{activeAlerts} 
+							{chatMessages} 
+						/>
+					</div>
+				{/if}
+			{/each}
+		{/key}
 
-		{#each elements as el (el.id)}
-			{@const Widget = WIDGET_REGISTRY[el.type]}
-			{#if Widget}
-				<div style={wrapperStyle(el)}>
-					<Widget element={el} {statValues} {activeAlerts} {chatMessages} />
-				</div>
-			{/if}
-		{/each}
+		<!-- Micro Diagnostic Info for OBS -->
+		{#if !isPreview}
+			<div class="diagnostic-info" class:offline={!connected}>
+				{connected ? '● LIVE' : '○ CONNECTING'} | {lastSync} | v{version}
+			</div>
+		{/if}
+	</div>
+{/if}
+
+{#if loadError && !isPreview}
+	<div style="position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); color: #f87171; font-family: sans-serif; font-size: 14px; text-align: center; padding: 20px;">
+		{loadError}<br/>Intentando reconectar...
 	</div>
 {/if}
 
 <style>
 	:global(body) { background: transparent !important; margin: 0; overflow: hidden; }
 	.canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+
+	.diagnostic-info {
+		position: fixed;
+		bottom: 8px;
+		right: 8px;
+		font-family: monospace;
+		font-size: 8px;
+		color: rgba(255, 255, 255, 0.2);
+		letter-spacing: 1px;
+		pointer-events: none;
+		user-select: none;
+		z-index: 1000;
+	}
+
+	.diagnostic-info.offline {
+		color: #ef4444;
+		animation: pulse 1s infinite alternate;
+	}
+
+	@keyframes pulse {
+		from { opacity: 0.3; }
+		to { opacity: 1; }
+	}
 </style>

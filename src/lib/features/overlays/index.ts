@@ -4,6 +4,7 @@ import StatWidget from './components/StatWidget.svelte';
 import ChatHighlightWidget from './components/ChatHighlightWidget.svelte';
 import BannerWidget from './components/BannerWidget.svelte';
 import ProgressBarWidget from './components/ProgressBarWidget.svelte';
+import MediaWidget from './components/MediaWidget.svelte';
 
 export * from './types';
 
@@ -13,7 +14,8 @@ export const WIDGET_REGISTRY: Record<string, Component<any>> = {
 	stat: StatWidget as any,
 	chat_highlight: ChatHighlightWidget as any,
 	banner: BannerWidget as any,
-	progress_bar: ProgressBarWidget as any
+	progress_bar: ProgressBarWidget as any,
+	media: MediaWidget as any
 };
 
 export {
@@ -21,7 +23,8 @@ export {
 	StatWidget,
 	ChatHighlightWidget,
 	BannerWidget,
-	ProgressBarWidget
+	ProgressBarWidget,
+	MediaWidget
 };
 
 // Default configurations for new elements
@@ -54,6 +57,11 @@ export const DEFAULT_ELEMENT_CONFIGS: Record<string, any> = {
 		data_source: 'subscribers.active_total',
 		config: { label: 'Meta de subs', target: 500 },
 		style: { background: '#18181bcc', accent: '#9147ff', border_radius: 14, glow: true, duration_ms: 0, animation: 'fade_in', font_size: 20, text_color: '#ffffff', opacity: 100 }
+	},
+	media: {
+		width: 300, height: 300,
+		config: { url: '' },
+		style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 0, text_color: '#ffffff', opacity: 100 }
 	}
 };
 
