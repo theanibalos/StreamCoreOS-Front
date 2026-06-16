@@ -2,9 +2,9 @@
 	import { page } from '$app/state';
 	import { FEATURES } from '../features.config';
 	import { Button } from '$lib/components/ui/button';
-	import { Sun, Moon } from '@lucide/svelte';
+	import { Sun, Moon, Link, Link2Off } from '@lucide/svelte';
 	import { toggleMode } from 'mode-watcher';
-	import { logout } from '$lib/core/stores/auth.svelte';
+	import { logout, auth } from '$lib/core/stores/auth.svelte';
 
 	let { class: className = '' }: { class?: string } = $props();
 </script>
@@ -17,6 +17,34 @@
 			<Moon class="absolute h-[1.1rem] w-[1.1rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
 			<span class="sr-only">Toggle theme</span>
 		</Button>
+	</div>
+
+	<div class="px-4 mb-6">
+		<div class="flex items-center gap-2 rounded-md border bg-muted/40 p-2 shadow-inner">
+			<div class="relative flex h-2 w-2">
+				{#if auth.isConnected}
+					<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+					<span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+				{:else if auth.isConnecting}
+					<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+					<span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
+				{:else}
+					<span class="relative inline-flex h-2 w-2 rounded-full bg-destructive"></span>
+				{/if}
+			</div>
+			<div class="flex flex-col">
+				<span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 leading-none">Twitch EventSub</span>
+				<span class="text-[11px] font-semibold">
+					{#if auth.isConnected}
+						<span class="text-emerald-500 dark:text-emerald-400">En línea</span>
+					{:else if auth.isConnecting}
+						<span class="text-amber-500 dark:text-amber-400 animate-pulse">Conectando...</span>
+					{:else}
+						<span class="text-destructive">Desconectado</span>
+					{/if}
+				</span>
+			</div>
+		</div>
 	</div>
 
 	<ul class="space-y-1 flex-1 px-1">

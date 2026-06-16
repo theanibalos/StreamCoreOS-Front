@@ -70,11 +70,15 @@
 		<CardTitle class="text-sm font-bold uppercase tracking-wide flex items-center gap-2">
 			<Zap class="w-4 h-4 text-yellow-400" /> Bits
 		</CardTitle>
-		<Button variant="outline" size="icon" class="h-8 w-8" title="Sync desde Twitch" onclick={sync} disabled={syncing || loading}>
-			<RefreshCcw class="h-4 w-4 {syncing ? 'animate-spin' : ''}" />
-		</Button>
-		<Button variant="outline" size="icon" class="h-8 w-8" onclick={load} disabled={loading}>
-			<RefreshCw class="h-4 w-4 {loading ? 'animate-spin' : ''}" />
+		<Button 
+			variant="outline" 
+			size="icon" 
+			class="h-8 w-8" 
+			title="Sincronizar con Twitch" 
+			onclick={sync} 
+			disabled={syncing || loading}
+		>
+			<RefreshCw class="h-4 w-4 {syncing || loading ? 'animate-spin' : ''}" />
 		</Button>
 	</CardHeader>
 	<CardContent>

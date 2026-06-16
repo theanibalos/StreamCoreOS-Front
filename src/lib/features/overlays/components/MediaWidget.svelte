@@ -5,7 +5,7 @@
 
 	let { element }: { element: OverlayElement } = $props();
 
-	const rawUrl  = $derived(element.config?.url ?? '');
+	const rawUrl  = $derived((element.config?.url as string) ?? '');
 	// Direct to port 8000 to avoid proxy issues in OBS
 	const url     = $derived(rawUrl.startsWith('/api') 
 		? `${page.url.protocol}//${page.url.hostname}:8000${rawUrl}` 

@@ -22,6 +22,7 @@
 	onMount(() => {
 		let pollId: any;
 		let authPollId: any;
+		let reactivePollId: any;
 		let stopAlerts: () => void = () => {};
 		let stopChat: () => void = () => {};
 
@@ -29,6 +30,10 @@
 			await checkAuth();
 			if (!auth.isAuthenticated) return;
 
+			setupAuthenticatedSession();
+		}
+
+		function setupAuthenticatedSession() {
 			checkScopes();
 			refreshStream();
 			
@@ -36,7 +41,7 @@
 			stopAlerts = connectAlerts();
 			stopChat = connectChat();
 
-			// Session validation poll
+			// Main validation poll
 			authPollId = setInterval(async () => {
 				await checkAuth({ silent: true });
 				if (!auth.isAuthenticated) {
@@ -45,10 +50,28 @@
 			}, POLL_INTERVAL);
 		}
 
+		// Reactive poll: if we are authenticated but NOT connected (connecting),
+		// poll faster to update the UI as soon as EventSub is ready.
+		$effect(() => {
+			if (auth.isAuthenticated && !auth.isConnected && !reactivePollId) {
+				reactivePollId = setInterval(async () => {
+					await checkAuth({ silent: true });
+					if (auth.isConnected) {
+						clearInterval(reactivePollId);
+						reactivePollId = null;
+					}
+				}, 2000);
+			} else if ((!auth.isAuthenticated || auth.isConnected) && reactivePollId) {
+				clearInterval(reactivePollId);
+				reactivePollId = null;
+			}
+		});
+
 		function cleanup() {
 			resetScopes();
 			clearInterval(pollId);
 			clearInterval(authPollId);
+			clearInterval(reactivePollId);
 			stopAlerts();
 			stopChat();
 		}

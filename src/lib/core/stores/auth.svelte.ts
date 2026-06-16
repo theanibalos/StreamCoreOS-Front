@@ -3,6 +3,8 @@ import type { OAuthStartResponse } from '$lib/types/api';
 
 export const auth = $state({
 	isAuthenticated: false,
+	isConnected: false,
+	isConnecting: false,
 	loading: true,
 	error: null as string | null
 });
@@ -10,23 +12,20 @@ export const auth = $state({
 export async function checkAuth({ silent = false } = {}) {
 	if (!silent) auth.loading = true;
 	try {
-		// Si el backend tiene un token pero EventSub aún no conectó, reintentamos
-		// hasta 5 veces con 1s de espera entre intentos antes de mostrar el login.
-		for (let attempt = 0; attempt < 5; attempt++) {
-			const res = await get<any>('/auth/twitch/status');
-			if (res.success && res.data?.connected === true) {
-				auth.isAuthenticated = true;
-				return;
-			}
-			if (res.success && res.data?.connecting === true && attempt < 4) {
-				await new Promise((r) => setTimeout(r, 1000));
-				continue;
-			}
-			auth.isAuthenticated = false;
+		const res = await get<any>('/auth/twitch/status');
+		if (res.success && res.data) {
+			auth.isAuthenticated = res.data.authenticated;
+			auth.isConnected = res.data.connected;
+			auth.isConnecting = res.data.connecting;
 			return;
 		}
+		auth.isAuthenticated = false;
+		auth.isConnected = false;
+		auth.isConnecting = false;
 	} catch {
 		auth.isAuthenticated = false;
+		auth.isConnected = false;
+		auth.isConnecting = false;
 	} finally {
 		if (!silent) auth.loading = false;
 	}
@@ -47,11 +46,13 @@ export async function startTwitchAuth() {
 
 export async function logout() {
 	try {
-		await fetch('/auth/twitch/logout', { method: 'POST' });
+		await fetch('/api/auth/twitch/logout', { method: 'POST' });
 	} catch {
 		// ignorar errores de red — igual limpiamos el estado local
 	} finally {
 		auth.isAuthenticated = false;
+		auth.isConnected = false;
+		auth.isConnecting = false;
 		auth.error = null;
 	}
 }

@@ -212,13 +212,13 @@
 							<Input 
 								class="h-8 text-xs font-mono" 
 								placeholder="https://... o /api/uploads/..." 
-								value={selected.config?.url} 
+								value={selected.config?.url as string | undefined} 
 								oninput={(e) => updateConfig({ url: (e.target as HTMLInputElement).value })} 
 							/>
 						</div>
 
 						<BackgroundGallery
-							currentImage={selected.config?.url}
+							currentImage={selected.config?.url as string | undefined}
 							onSelect={(url) => updateConfig({ url })}
 						/>
 					</div>

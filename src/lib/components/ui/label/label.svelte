@@ -2,7 +2,7 @@
 	import { Label as LabelPrimitive } from "bits-ui";
 	import { cn } from "$lib/utils";
 
-	let { class: className, ...rest } = $props();
+	let { class: className = undefined, ...rest }: { class?: string; [key: string]: any } = $props();
 </script>
 
 <LabelPrimitive.Root

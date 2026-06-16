@@ -12,7 +12,7 @@ export type ElementStyle = {
 
 export type OverlayElement = {
 	id: string;
-	type: 'alert' | 'stat' | 'chat_highlight' | 'banner' | 'progress_bar';
+	type: 'alert' | 'stat' | 'chat_highlight' | 'banner' | 'progress_bar' | 'media';
 	x: number;
 	y: number;
 	width: number;

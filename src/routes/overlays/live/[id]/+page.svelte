@@ -30,6 +30,7 @@
 	let canvasHeight   = $state(1080);
 	let backgroundImage = $state<string | null>(null);
 	let backgroundType  = $state<'image' | 'video' | null>(null);
+	let currentConfigStr = '';
 
 	// Diagnostic state for OBS
 	let version        = $state(0);
@@ -38,6 +39,8 @@
 
 	/**
 	 * Takes a new configuration and fresh live data, then applies them atomically.
+	 * Compares the configuration string to avoid redrawing the DOM and breaking transitions
+	 * unless the design elements actually changed.
 	 */
 	function applyAtomicUpdate(config: any, liveData?: Record<string, any>) {
 		if (!config) return;
@@ -52,21 +55,27 @@
 			}
 		}
 
+		const newConfigStr = JSON.stringify(config);
+		const configChanged = newConfigStr !== currentConfigStr;
+
 		flushSync(() => {
-			elements        = nextElements;
-			statValues      = nextStats;
-			canvasWidth     = config.canvas_width    ?? 1920;
-			canvasHeight    = config.canvas_height   ?? 1080;
-			backgroundImage = config.background_image ?? null;
-			backgroundType  = config.background_type  ?? null;
+			if (configChanged) {
+				elements        = nextElements;
+				canvasWidth     = config.canvas_width    ?? 1920;
+				canvasHeight    = config.canvas_height   ?? 1080;
+				backgroundImage = config.background_image ?? null;
+				backgroundType  = config.background_type  ?? null;
+				currentConfigStr = newConfigStr;
+				version++;
+				initChatSlots();
+			}
 			
-			initChatSlots();
-			version++; 
+			statValues      = nextStats;
 			loaded = true;
 			lastSync = new Date().toLocaleTimeString();
 		});
 		
-		console.log('[SCO] Atomic update applied. Elements:', elements.length, 'Stats cached:', Object.keys(statValues).length);
+		console.log('[SCO] Atomic update applied. Changed:', configChanged, 'Elements:', elements.length, 'Stats cached:', Object.keys(statValues).length);
 	}
 
 	// ── Data Fetching ────────────────────────────────────────────────────────
@@ -74,7 +83,7 @@
 	async function refreshEverything() {
 		if (!overlayId) return;
 		try {
-			const res = await get<{ success: boolean; data: { config: any, stats: any } }>(`/overlays/${overlayId}/config?_=${Date.now()}`);
+			const res = await get<{ success: boolean; data: { config: any, stats: any }; error?: string }>(`/overlays/${overlayId}/config?_=${Date.now()}`);
 
 			if (res.success) {
 				applyAtomicUpdate(res.data.config, res.data.stats);
@@ -157,10 +166,9 @@
 
 	function connectStats() {
 		const id = overlayId;
-		connected = false;
 		return sse(`/overlays/stats?_=${Date.now()}`, (raw: any) => {
 			connected = true;
-			
+
 			// Case A: ATOMIC DESIGN + STATS PUSH
 			if (raw.__type === 'config_updated') {
 				if (String(raw.overlay_id) === String(id) && raw.config) {
@@ -169,7 +177,7 @@
 				}
 				return;
 			}
-			
+
 			// Case B: STAT UPDATE (Subs, followers, bits, etc.)
 			const next: Record<string, string> = { ...statValues };
 			let changed = false;
@@ -184,6 +192,8 @@
 				statValues = next;
 				lastSync = new Date().toLocaleTimeString();
 			}
+		}, (isConnected) => {
+			connected = isConnected;
 		});
 	}
 
@@ -199,8 +209,8 @@
 			isPreview ? () => {} : connectStats()
 		];
 
-		// Polling interval for OBS as safety net
-		const interval = setInterval(refreshEverything, 10000);
+		// Polling interval for OBS as safety net (every 60s instead of 10s to avoid database spam)
+		const interval = setInterval(refreshEverything, 60000);
 
 		return () => {
 			stops.forEach(s => s());

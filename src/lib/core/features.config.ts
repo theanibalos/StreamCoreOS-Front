@@ -10,7 +10,8 @@ import {
 	Monitor,
 	Activity,
 	Sparkles,
-	KeyRound
+	KeyRound,
+	Webhook
 } from '@lucide/svelte';
 
 export const FEATURES: { id: string; href: string; label: string; icon: Component }[] = [
@@ -21,6 +22,7 @@ export const FEATURES: { id: string; href: string; label: string; icon: Componen
 	{ id: 'moderation', href: '/moderation', label: 'Moderación', icon: Shield },
 	{ id: 'timers', href: '/timers', label: 'Temporizadores', icon: Timer },
 	{ id: 'tts', href: '/tts', label: 'TTS', icon: Volume2 },
+	{ id: 'webhooks', href: '/settings/webhooks', label: 'Webhooks', icon: Webhook },
 	{ id: 'overlays', href: '/overlays', label: 'Overlays', icon: Monitor },
 	{ id: 'system', href: '/system', label: 'Sistema', icon: Activity },
 	{ id: 'ai', href: '/ai', label: 'AI', icon: Sparkles },
