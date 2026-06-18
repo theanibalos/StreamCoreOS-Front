@@ -53,7 +53,7 @@
 				<a
 					href={link.href}
 					class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all {
-						page.url.pathname === link.href || (link.href !== '/' && page.url.pathname.startsWith(link.href))
+						page.url.pathname === link.href || (link.href !== '/' && link.href !== '/settings' && page.url.pathname.startsWith(link.href))
 						? 'bg-primary/10 text-primary shadow-sm'
 						: 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
 					}"

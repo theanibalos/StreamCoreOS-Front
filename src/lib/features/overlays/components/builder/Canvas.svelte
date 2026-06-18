@@ -9,6 +9,7 @@
 		selectedId = $bindable(),
 		canvasRef = $bindable<HTMLDivElement | null>(null),
 		statValues,
+		globalStats = {},
 		activeAlerts,
 		chatMessages,
 		canvasWidth = 1920,
@@ -23,6 +24,7 @@
 		selectedId: string | null;
 		canvasRef?: HTMLDivElement | null;
 		statValues: Record<string, string>;
+		globalStats?: Record<string, string>;
 		activeAlerts: ActiveAlert[];
 		chatMessages: Record<string, ChatMessage[]>;
 		canvasWidth?: number;
@@ -131,7 +133,7 @@
 					<div style="pointer-events: none; width: 100%; height: 100%;">
 						<Widget
 							element={el}
-							{statValues}
+							statValues={el.type === 'custom_code' ? globalStats : statValues}
 							{activeAlerts}
 							{chatMessages}
 						/>

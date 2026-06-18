@@ -5,6 +5,7 @@ import ChatHighlightWidget from './components/ChatHighlightWidget.svelte';
 import BannerWidget from './components/BannerWidget.svelte';
 import ProgressBarWidget from './components/ProgressBarWidget.svelte';
 import MediaWidget from './components/MediaWidget.svelte';
+import CustomCodeWidget from './components/CustomCodeWidget.svelte';
 
 export * from './types';
 
@@ -15,7 +16,8 @@ export const WIDGET_REGISTRY: Record<string, Component<any>> = {
 	chat_highlight: ChatHighlightWidget as any,
 	banner: BannerWidget as any,
 	progress_bar: ProgressBarWidget as any,
-	media: MediaWidget as any
+	media: MediaWidget as any,
+	custom_code: CustomCodeWidget as any
 };
 
 export {
@@ -24,7 +26,8 @@ export {
 	ChatHighlightWidget,
 	BannerWidget,
 	ProgressBarWidget,
-	MediaWidget
+	MediaWidget,
+	CustomCodeWidget
 };
 
 // Default configurations for new elements
@@ -62,6 +65,15 @@ export const DEFAULT_ELEMENT_CONFIGS: Record<string, any> = {
 		width: 300, height: 300,
 		config: { url: '' },
 		style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 0, text_color: '#ffffff', opacity: 100 }
+	},
+	custom_code: {
+		width: 400, height: 300,
+		config: {
+			html: '<div class="card">\n  <h2>¡Hola Stream!</h2>\n  <p>Seguidores: <span id="followers">0</span></p>\n</div>',
+			css: '.card {\n  background: rgba(0, 0, 0, 0.7);\n  border: 2px solid #9147ff;\n  border-radius: 12px;\n  padding: 20px;\n  text-align: center;\n  box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);\n}\nh2 {\n  margin: 0 0 10px 0;\n  color: #9147ff;\n}',
+			js: '// Escucha actualizaciones del stream en tiempo real\nwindow.addEventListener("streamupdate", (e) => {\n  const stats = e.detail.stats;\n  const followersEl = document.getElementById("followers");\n  if (followersEl) {\n    followersEl.innerText = stats["followers.total"] || "0";\n  }\n});'
+		},
+		style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 16, text_color: '#ffffff', opacity: 100 }
 	}
 };
 

@@ -95,7 +95,9 @@
 	:global(:root) {
 		--primary-rgb: 147, 51, 234; /* Violet-600 */
 	}
-	:global(body) {
+	:global(html.overlay-page-html), :global(body.overlay-page-body) {
 		background: transparent !important;
+		background-color: transparent !important;
+		color-scheme: normal !important;
 	}
 </style>

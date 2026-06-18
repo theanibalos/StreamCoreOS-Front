@@ -46,7 +46,9 @@
 </div>
 
 <style>
-	:global(body) {
+	:global(html.overlay-page-html), :global(body.overlay-page-body) {
 		background: transparent !important;
+		background-color: transparent !important;
+		color-scheme: normal !important;
 	}
 </style>

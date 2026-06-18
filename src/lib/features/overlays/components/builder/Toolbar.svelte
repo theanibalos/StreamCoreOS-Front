@@ -6,7 +6,8 @@
 		MessageSquare, 
 		Type, 
 		TrendingUp,
-		ImageIcon
+		ImageIcon,
+		Code
 	} from '@lucide/svelte';
 	import type { OverlayElement } from '../../index';
 
@@ -19,6 +20,7 @@
 		{ type: 'banner',         icon: Type,          label: 'Texto' },
 		{ type: 'progress_bar',   icon: TrendingUp,    label: 'Meta' },
 		{ type: 'media',          icon: ImageIcon,     label: 'Media' },
+		{ type: 'custom_code',    icon: Code,          label: 'Código' }
 	];
 </script>
 

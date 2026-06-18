@@ -10,6 +10,21 @@
 		page.url.pathname !== '/overlays' &&
 		!page.url.pathname.startsWith('/overlays/builder')
 	);
+
+	$effect(() => {
+		if (isActualOverlay) {
+			document.documentElement.classList.add('overlay-page-html');
+			document.body.classList.add('overlay-page-body');
+		} else {
+			document.documentElement.classList.remove('overlay-page-html');
+			document.body.classList.remove('overlay-page-body');
+		}
+
+		return () => {
+			document.documentElement.classList.remove('overlay-page-html');
+			document.body.classList.remove('overlay-page-body');
+		};
+	});
 </script>
 
 {#if isActualOverlay}
@@ -17,8 +32,10 @@
 		{@render children()}
 	</div>
 	<style>
-		:global(body) {
+		:global(html.overlay-page-html), :global(body.overlay-page-body) {
 			background-color: transparent !important;
+			background: transparent !important;
+			color-scheme: normal !important;
 			overflow: hidden;
 		}
 	</style>

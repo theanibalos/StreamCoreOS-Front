@@ -127,7 +127,7 @@
 	function initChatSlots() {
 		const slots: Record<string, ChatMessage[]> = { ...chatMessages };
 		for (const el of elements) {
-			if (el.type === 'chat_highlight' && !slots[el.id]) slots[el.id] = [];
+			if ((el.type === 'chat_highlight' || el.type === 'custom_code') && !slots[el.id]) slots[el.id] = [];
 		}
 		chatMessages = slots;
 	}
@@ -137,7 +137,7 @@
 	function connectChat() {
 		return sse('/chat/stream', (msg: any) => {
 			for (const el of elements) {
-				if (el.type !== 'chat_highlight') continue;
+				if (el.type !== 'chat_highlight' && el.type !== 'custom_code') continue;
 				const filterUser = el.trigger?.filter_user;
 				if (filterUser && msg.display_name.toLowerCase() !== filterUser.toLowerCase()) continue;
 
@@ -239,7 +239,7 @@
 					<div style={wrapperStyle(el, i)}>
 						<Widget 
 							element={el} 
-							statValues={el.data_source ? { [el.id]: statValues[el.data_source] ?? '0' } : {}}
+							statValues={el.type === 'custom_code' ? statValues : (el.data_source ? { [el.id]: statValues[el.data_source] ?? '0' } : {})}
 							{activeAlerts} 
 							{chatMessages} 
 						/>
@@ -264,7 +264,13 @@
 {/if}
 
 <style>
-	:global(body) { background: transparent !important; margin: 0; overflow: hidden; }
+	:global(html.overlay-page-html), :global(body.overlay-page-body) {
+		background: transparent !important;
+		background-color: transparent !important;
+		color-scheme: normal !important;
+		margin: 0;
+		overflow: hidden;
+	}
 	.canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; }
 
 	.diagnostic-info {

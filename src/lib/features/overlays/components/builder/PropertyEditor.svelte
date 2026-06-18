@@ -2,7 +2,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import { Layers, Trash2, Copy, ImageIcon, X, Loader, ChevronUp, ChevronDown, Maximize, Minimize, Expand } from '@lucide/svelte';
+	import { Layers, Trash2, Copy, ImageIcon, X, Loader, ChevronUp, ChevronDown, Maximize, Minimize, Expand, Zap, BarChart2, MessageSquare, Type, TrendingUp, Code } from '@lucide/svelte';
 	import { upload } from '$lib/core/api/client';
 	import { show } from '$lib/core/stores/toast.svelte';
 	import BackgroundGallery from './BackgroundGallery.svelte';
@@ -10,6 +10,8 @@
 
 	let {
 		selected,
+		elements = [],
+		onSelect,
 		onUpdate,
 		onDelete,
 		onDuplicate,
@@ -18,6 +20,8 @@
 		canvasHeight = 1080
 	}: {
 		selected: OverlayElement | null;
+		elements?: OverlayElement[];
+		onSelect: (id: string) => void;
 		onUpdate: (updates: Partial<OverlayElement>) => void;
 		onDelete: () => void;
 		onDuplicate: () => void;
@@ -26,8 +30,38 @@
 		canvasHeight?: number;
 	} = $props();
 
+	const WIDGET_ICONS: Record<string, any> = {
+		alert: Zap,
+		stat: BarChart2,
+		chat_highlight: MessageSquare,
+		banner: Type,
+		progress_bar: TrendingUp,
+		media: ImageIcon,
+		custom_code: Code
+	};
+
 	let fileInputRef = $state<HTMLInputElement | null>(null);
 	let uploading = $state(false);
+	let activeTab = $state<'html' | 'css' | 'js'>('html');
+	let lastSelectedId = $state<string | null>(null);
+
+	$effect(() => {
+		if (selected) {
+			if (selected.id !== lastSelectedId) {
+				lastSelectedId = selected.id;
+				activeTab = 'html';
+			}
+		} else {
+			lastSelectedId = null;
+		}
+	});
+
+	const hasBackground   = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar'].includes(selected.type));
+	const hasAccent       = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar', 'media'].includes(selected.type));
+	const hasTextColor    = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner'].includes(selected.type));
+	const hasBorderRadius = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar', 'media'].includes(selected.type));
+	const hasFontSize     = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar'].includes(selected.type));
+	const hasGlow         = $derived(selected && ['alert', 'stat', 'progress_bar', 'media'].includes(selected.type));
 
 	async function handleFile(file: File) {
 		const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
@@ -108,7 +142,9 @@
 		stat: 'Estadística',
 		chat_highlight: 'Chat Highlight',
 		banner: 'Banner',
-		progress_bar: 'Progreso'
+		progress_bar: 'Progreso',
+		media: 'Media',
+		custom_code: 'Código'
 	};
 </script>
 
@@ -269,16 +305,79 @@
 					</div>
 				{/if}
 
+				{#if selected.type === 'custom_code'}
+					<div class="space-y-4">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-tight">Código Personalizado</p>
+						<div class="flex border-b border-border">
+							<button 
+								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'html' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								onclick={() => activeTab = 'html'}
+							>
+								HTML
+							</button>
+							<button 
+								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'css' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								onclick={() => activeTab = 'css'}
+							>
+								CSS
+							</button>
+							<button 
+								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'js' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+								onclick={() => activeTab = 'js'}
+							>
+								JS
+							</button>
+						</div>
+
+						{#if activeTab === 'html'}
+							<div>
+								<p class="text-[10px] font-medium text-muted-foreground mb-1">Estructura HTML</p>
+								<textarea
+									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+									value={selected.config?.html as string ?? ''}
+									oninput={(e) => updateConfig({ html: (e.target as HTMLTextAreaElement).value })}
+									placeholder="<div class='custom'>...</div>"
+								></textarea>
+							</div>
+						{:else if activeTab === 'css'}
+							<div>
+								<p class="text-[10px] font-medium text-muted-foreground mb-1">Estilos CSS</p>
+								<textarea
+									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+									value={selected.config?.css as string ?? ''}
+									oninput={(e) => updateConfig({ css: (e.target as HTMLTextAreaElement).value })}
+									placeholder={".custom { color: purple; }"}
+								></textarea>
+							</div>
+						{:else if activeTab === 'js'}
+							<div>
+								<p class="text-[10px] font-medium text-muted-foreground mb-1">Script JavaScript</p>
+								<textarea
+									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+									value={selected.config?.js as string ?? ''}
+									oninput={(e) => updateConfig({ js: (e.target as HTMLTextAreaElement).value })}
+									placeholder={"window.addEventListener('streamupdate', (e) => { ... })"}
+								></textarea>
+								<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">
+									Escuchá <code>streamupdate</code> en window para datos en vivo.
+								</p>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Content Template -->
-				<div>
-					<p class="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-tight">Template HTML/Text</p>
-					<textarea
-						class="w-full min-h-[100px] p-3 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
-						value={selected.template}
-						oninput={(e) => onUpdate({ template: (e.target as HTMLTextAreaElement).value })}
-					></textarea>
-					<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">Usa {`{user_name}`}, {`{bits}`}, etc.</p>
-				</div>
+				{#if selected.type !== 'media' && selected.type !== 'custom_code'}
+					<div>
+						<p class="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-tight">Template HTML/Text</p>
+						<textarea
+							class="w-full min-h-[100px] p-3 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+							value={selected.template}
+							oninput={(e) => onUpdate({ template: (e.target as HTMLTextAreaElement).value })}
+						></textarea>
+						<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">Usa {`{user_name}`}, {`{bits}`}, etc.</p>
+					</div>
+				{/if}
 
 				<!-- Animation -->
 				{#if selected.type === 'alert'}
@@ -304,55 +403,100 @@
 				<div>
 					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight">Visuales</p>
 					<div class="space-y-3">
-						{#each [['Fondo', 'background'], ['Acento', 'accent'], ['Texto', 'text_color']] as [label, key]}
+						{#if hasBackground}
 							<div class="flex items-center justify-between">
-								<Label class="text-[10px] text-muted-foreground">{label}</Label>
+								<Label class="text-[10px] text-muted-foreground">Fondo</Label>
 								<div class="flex items-center gap-1.5">
 									<input
 										type="color"
-										value={(selected.style as Record<string, any>)[key]?.replace(/[0-9a-f]{2}$/i, '') ?? '#000000'}
+										value={selected.style.background?.replace(/[0-9a-f]{2}$/i, '') ?? '#000000'}
 										class="w-6 h-6 rounded cursor-pointer border-0 p-0 overflow-hidden"
-										onchange={(e) => updateStyle({ [key]: (e.target as HTMLInputElement).value } as Partial<ElementStyle>)}
+										onchange={(e) => updateStyle({ background: (e.target as HTMLInputElement).value })}
 									/>
 									<Input
 										class="h-6 w-24 text-[10px] font-mono px-1.5"
-										value={(selected.style as Record<string, any>)[key] ?? ''}
-										oninput={(e) => updateStyle({ [key]: (e.target as HTMLInputElement).value } as Partial<ElementStyle>)}
+										value={selected.style.background ?? ''}
+										oninput={(e) => updateStyle({ background: (e.target as HTMLInputElement).value })}
 									/>
 								</div>
 							</div>
-						{/each}
+						{/if}
 
-						<div class="flex items-center justify-between">
-							<Label class="text-[10px] text-muted-foreground">Border radius</Label>
-							<Input
-								type="number" min="0" max="60"
-								class="h-6 w-24 text-xs"
-								value={selected.style.border_radius}
-								oninput={(e) => updateStyle({ border_radius: parseInt((e.target as HTMLInputElement).value) || 0 })}
-							/>
-						</div>
+						{#if hasAccent}
+							<div class="flex items-center justify-between">
+								<Label class="text-[10px] text-muted-foreground">Acento</Label>
+								<div class="flex items-center gap-1.5">
+									<input
+										type="color"
+										value={selected.style.accent?.replace(/[0-9a-f]{2}$/i, '') ?? '#000000'}
+										class="w-6 h-6 rounded cursor-pointer border-0 p-0 overflow-hidden"
+										onchange={(e) => updateStyle({ accent: (e.target as HTMLInputElement).value })}
+									/>
+									<Input
+										class="h-6 w-24 text-[10px] font-mono px-1.5"
+										value={selected.style.accent ?? ''}
+										oninput={(e) => updateStyle({ accent: (e.target as HTMLInputElement).value })}
+									/>
+								</div>
+							</div>
+						{/if}
 
-						<div class="flex items-center justify-between">
-							<Label class="text-[10px] text-muted-foreground">Font size</Label>
-							<Input
-								type="number" min="10" max="120"
-								class="h-6 w-24 text-xs"
-								value={selected.style.font_size}
-								oninput={(e) => updateStyle({ font_size: parseInt((e.target as HTMLInputElement).value) || 24 })}
-							/>
-						</div>
+						{#if hasTextColor}
+							<div class="flex items-center justify-between">
+								<Label class="text-[10px] text-muted-foreground">Texto</Label>
+								<div class="flex items-center gap-1.5">
+									<input
+										type="color"
+										value={selected.style.text_color?.replace(/[0-9a-f]{2}$/i, '') ?? '#000000'}
+										class="w-6 h-6 rounded cursor-pointer border-0 p-0 overflow-hidden"
+										onchange={(e) => updateStyle({ text_color: (e.target as HTMLInputElement).value })}
+									/>
+									<Input
+										class="h-6 w-24 text-[10px] font-mono px-1.5"
+										value={selected.style.text_color ?? ''}
+										oninput={(e) => updateStyle({ text_color: (e.target as HTMLInputElement).value })}
+									/>
+								</div>
+							</div>
+						{/if}
 
-						<div class="flex items-center justify-between">
-							<Label class="text-[10px] text-muted-foreground">Glow</Label>
-							<button
-								class="text-[10px] px-2.5 py-1 rounded border font-bold transition-colors {selected.style.glow ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'}"
-								onclick={() => updateStyle({ glow: !selected.style.glow })}
-							>
-								{selected.style.glow ? 'ACTIVO' : 'DESACTIVADO'}
-							</button>
-						</div>
+						{#if hasBorderRadius}
+							<div class="flex items-center justify-between">
+								<Label class="text-[10px] text-muted-foreground">Border radius</Label>
+								<Input
+									type="number" min="0" max="60"
+									class="h-6 w-24 text-xs"
+									value={selected.style.border_radius}
+									oninput={(e) => updateStyle({ border_radius: parseInt((e.target as HTMLInputElement).value) || 0 })}
+								/>
+							</div>
+						{/if}
 
+						{#if hasFontSize}
+							<div class="flex items-center justify-between">
+								<Label class="text-[10px] text-muted-foreground">Font size</Label>
+								<Input
+									type="number" min="10" max="120"
+									class="h-6 w-24 text-xs"
+									value={selected.style.font_size}
+									oninput={(e) => updateStyle({ font_size: parseInt((e.target as HTMLInputElement).value) || 24 })}
+								/>
+							</div>
+						{/if}
+
+						{#if hasGlow}
+							<div class="flex items-center justify-between">
+								<Label class="text-[10px] text-muted-foreground">Glow</Label>
+								<button
+									class="text-[10px] px-2.5 py-1 rounded border font-bold transition-colors {selected.style.glow ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'}"
+									onclick={() => updateStyle({ glow: !selected.style.glow })}
+								>
+									{selected.style.glow ? 'ACTIVO' : 'DESACTIVADO'}
+								</button>
+							</div>
+						{/if}
+
+						<!-- Opacidad (siempre visible para ajustar el desvanecimiento del widget en el layout) -->
 						<div class="pt-1">
 							<div class="flex items-center justify-between mb-1.5">
 								<Label class="text-[10px] text-muted-foreground">Opacidad</Label>
@@ -370,15 +514,71 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- Lista de Capas (Cuando hay elemento seleccionado) -->
+				<div class="border-t pt-4">
+					<p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+						Capas ({elements.length})
+					</p>
+					<div class="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+						{#each [...elements].reverse() as el}
+							{@const Icon = WIDGET_ICONS[el.type] || Layers}
+							<button
+								class="w-full flex items-center justify-between p-2 rounded-lg border text-left text-xs transition-all {el.id === selected.id ? 'border-primary bg-primary/10 text-primary-foreground font-semibold' : 'border-transparent bg-card/40 hover:bg-card/90'}"
+								onclick={() => onSelect(el.id)}
+							>
+								<div class="flex items-center gap-1.5 truncate">
+									<Icon class="w-3.5 h-3.5 shrink-0 text-primary" />
+									<span class="truncate">{ELEMENT_LABELS[el.type] || el.type}</span>
+									<span class="text-[9px] opacity-50 font-mono">({el.id})</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
 			</div>
 		{:else}
 			<!-- Canvas Settings (no element selected) -->
-			<div class="space-y-5">
-				<div class="pt-2 text-center text-muted-foreground">
+			<div class="space-y-6">
+				<div class="pt-2 text-center text-muted-foreground border-b pb-4">
 					<div class="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-2">
-						<Layers class="w-5 h-5 opacity-20" />
+						<Layers class="w-5 h-5 opacity-30 text-primary animate-pulse" />
 					</div>
-					<p class="text-[10px] opacity-60">Seleccioná un elemento para editar sus propiedades o añadí uno nuevo desde la izquierda</p>
+					<p class="text-xs font-semibold text-foreground">Canvas de Overlay</p>
+					<p class="text-[10px] opacity-60 mt-0.5">Seleccioná un elemento para editar o añadí uno nuevo desde el menú izquierdo</p>
+				</div>
+
+				<!-- Lista de Capas Completa -->
+				<div>
+					<p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+						Capas / Elementos ({elements.length})
+					</p>
+					{#if elements.length === 0}
+						<p class="text-[10px] text-muted-foreground italic text-center py-6 bg-muted/5 rounded-lg border border-dashed">
+							No hay elementos en pantalla.
+						</p>
+					{:else}
+						<div class="space-y-2">
+							{#each [...elements].reverse() as el}
+								{@const Icon = WIDGET_ICONS[el.type] || Layers}
+								<button
+									class="w-full flex items-center justify-between p-2.5 rounded-lg border bg-card/40 hover:bg-primary/5 hover:border-primary/30 transition-all text-left"
+									onclick={() => onSelect(el.id)}
+								>
+									<div class="flex items-center gap-2 truncate">
+										<Icon class="w-4 h-4 text-primary shrink-0" />
+										<div class="flex flex-col truncate">
+											<span class="text-xs font-semibold text-foreground truncate">{ELEMENT_LABELS[el.type] || el.type}</span>
+											<span class="text-[9px] text-muted-foreground font-mono truncate">{el.id}</span>
+										</div>
+									</div>
+									<div class="text-[9px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
+										x:{Math.round(el.x)}, y:{Math.round(el.y)}
+									</div>
+								</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}

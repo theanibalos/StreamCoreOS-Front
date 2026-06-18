@@ -63,7 +63,7 @@
 	const previewChatMessages = $derived<Record<string, ChatMessage[]>>(
 		Object.fromEntries(
 			elements
-				.filter((el) => el.type === 'chat_highlight')
+				.filter((el) => el.type === 'chat_highlight' || el.type === 'custom_code')
 				.map((el) => [el.id, [
 					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: 1, color: '#FF4500', badges: {} as Record<string, string>, fragments: [{ type: 'text', text: '¡Qué buen stream!' }] },
 					{ display_name: 'ModUser',   message: 'Muy buen contenido!',  timestamp: 2, color: '#00C8AF', badges: { moderator: '1' }, fragments: [{ type: 'text', text: 'Muy buen contenido!' }] },
@@ -310,6 +310,7 @@
 					bind:selectedId
 					bind:canvasRef={canvasAreaRef}
 					statValues={previewStatValues}
+					globalStats={{ ...PREVIEW_STAT_VALUES, ...liveStatBySource }}
 					activeAlerts={previewAlerts}
 					chatMessages={previewChatMessages}
 					{canvasWidth}
@@ -331,6 +332,8 @@
 
 		<PropertyEditor
 			{selected}
+			{elements}
+			onSelect={(id) => selectedId = id}
 			onUpdate={updateSelected}
 			onDelete={deleteSelected}
 			onDuplicate={duplicateSelected}
