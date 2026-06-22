@@ -76,7 +76,7 @@ src/
 └── routes/
     ├── +layout.svelte             # Auth shell + sidebar
     ├── overlays/
-    │   ├── builder/[id]/          # Overlay builder with AI assistant
+    │   ├── builder/[id]/          # Overlay builder (drag-and-drop, meta-driven widgets)
     │   └── live/[id]/             # Live overlay renderer (OBS browser source)
     └── ...                        # One route per feature
 ```

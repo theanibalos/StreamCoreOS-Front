@@ -1,23 +1,28 @@
 import type { Component } from 'svelte';
-import AlertWidget from './components/AlertWidget.svelte';
-import StatWidget from './components/StatWidget.svelte';
-import ChatHighlightWidget from './components/ChatHighlightWidget.svelte';
-import BannerWidget from './components/BannerWidget.svelte';
-import ProgressBarWidget from './components/ProgressBarWidget.svelte';
-import MediaWidget from './components/MediaWidget.svelte';
-import CustomCodeWidget from './components/CustomCodeWidget.svelte';
+import type { WidgetMeta } from './types';
+import AlertWidget, { meta as alertMeta } from './components/AlertWidget.svelte';
+import StatWidget, { meta as statMeta } from './components/StatWidget.svelte';
+import ChatHighlightWidget, { meta as chatMeta } from './components/ChatHighlightWidget.svelte';
+import BannerWidget, { meta as bannerMeta } from './components/BannerWidget.svelte';
+import ProgressBarWidget, { meta as progressMeta } from './components/ProgressBarWidget.svelte';
+import MediaWidget, { meta as mediaMeta } from './components/MediaWidget.svelte';
+import CustomCodeWidget, { meta as customMeta } from './components/CustomCodeWidget.svelte';
 
 export * from './types';
 
-// Central Registry to avoid duplication in builder and live routes
-export const WIDGET_REGISTRY: Record<string, Component<any>> = {
-	alert: AlertWidget as any,
-	stat: StatWidget as any,
-	chat_highlight: ChatHighlightWidget as any,
-	banner: BannerWidget as any,
-	progress_bar: ProgressBarWidget as any,
-	media: MediaWidget as any,
-	custom_code: CustomCodeWidget as any
+export type WidgetRegistryEntry = { component: Component<any>; meta: WidgetMeta };
+
+// Single source of truth: each widget contributes its component + self-described
+// `meta`. To add a widget type, create the .svelte (with its `meta` export) and
+// add one line here — the toolbar, property editor and defaults are all derived.
+export const WIDGET_REGISTRY: Record<string, WidgetRegistryEntry> = {
+	alert:         { component: AlertWidget,        meta: alertMeta },
+	stat:          { component: StatWidget,         meta: statMeta },
+	chat_highlight:{ component: ChatHighlightWidget, meta: chatMeta },
+	banner:        { component: BannerWidget,       meta: bannerMeta },
+	progress_bar:  { component: ProgressBarWidget,  meta: progressMeta },
+	media:         { component: MediaWidget,        meta: mediaMeta },
+	custom_code:   { component: CustomCodeWidget,   meta: customMeta }
 };
 
 export {
@@ -30,52 +35,10 @@ export {
 	CustomCodeWidget
 };
 
-// Default configurations for new elements
-export const DEFAULT_ELEMENT_CONFIGS: Record<string, any> = {
-	alert: {
-		width: 420, height: 160,
-		trigger: { event: 'channel.subscribe', filter_user: null },
-		template: '¡{user_name} se suscribió! 🎉',
-		style: { background: '#000000cc', accent: '#9333ea', border_radius: 20, glow: true, duration_ms: 5000, animation: 'scale_in', font_size: 28, text_color: '#ffffff', opacity: 100 }
-	},
-	stat: {
-		width: 220, height: 60,
-		data_source: 'subscribers.active_total',
-		template: '⭐ {value} subs',
-		style: { background: '#000000aa', accent: '#9333ea', border_radius: 12, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 22, text_color: '#ffffff', opacity: 100 }
-	},
-	chat_highlight: {
-		width: 380, height: 500,
-		trigger: { event: 'chat.message', filter_user: null },
-		template: '{display_name}: {message}',
-		style: { background: '#000000bb', accent: '#9333ea', border_radius: 14, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 18, text_color: '#ffffff', opacity: 100 }
-	},
-	banner: {
-		width: 500, height: 70,
-		template: 'Mi Stream',
-		style: { background: '#000000cc', accent: '#9333ea', border_radius: 10, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 24, text_color: '#ffffff', opacity: 100 }
-	},
-	progress_bar: {
-		width: 700, height: 90,
-		data_source: 'subscribers.active_total',
-		config: { label: 'Meta de subs', target: 500 },
-		style: { background: '#18181bcc', accent: '#9147ff', border_radius: 14, glow: true, duration_ms: 0, animation: 'fade_in', font_size: 20, text_color: '#ffffff', opacity: 100 }
-	},
-	media: {
-		width: 300, height: 300,
-		config: { url: '' },
-		style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 0, text_color: '#ffffff', opacity: 100 }
-	},
-	custom_code: {
-		width: 400, height: 300,
-		config: {
-			html: '<div class="card">\n  <h2>¡Hola Stream!</h2>\n  <p>Seguidores: <span id="followers">0</span></p>\n</div>',
-			css: '.card {\n  background: rgba(0, 0, 0, 0.7);\n  border: 2px solid #9147ff;\n  border-radius: 12px;\n  padding: 20px;\n  text-align: center;\n  box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);\n}\nh2 {\n  margin: 0 0 10px 0;\n  color: #9147ff;\n}',
-			js: '// Escucha actualizaciones del stream en tiempo real\nwindow.addEventListener("streamupdate", (e) => {\n  const stats = e.detail.stats;\n  const followersEl = document.getElementById("followers");\n  if (followersEl) {\n    followersEl.innerText = stats["followers.total"] || "0";\n  }\n});'
-		},
-		style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 16, text_color: '#ffffff', opacity: 100 }
-	}
-};
+// Default configurations for new elements — derived from each widget's meta.
+export const DEFAULT_ELEMENT_CONFIGS: Record<string, any> = Object.fromEntries(
+	Object.entries(WIDGET_REGISTRY).map(([type, { meta }]) => [type, meta.defaults])
+);
 
 export function createOverlayElement(type: string): any {
 	const id = Math.random().toString(36).slice(2, 9);

@@ -120,7 +120,7 @@
 		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 50px 50px; z-index: 1;"></div>
 
 		{#each elements as el (el.id)}
-			{@const Widget = WIDGET_REGISTRY[el.type]}
+			{@const Widget = WIDGET_REGISTRY[el.type]?.component}
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<div
 				style={elStyle(el)}

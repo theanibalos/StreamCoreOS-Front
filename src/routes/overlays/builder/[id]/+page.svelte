@@ -16,10 +16,7 @@
 	import BuilderHeader from '$lib/features/overlays/components/builder/BuilderHeader.svelte';
 	import Toolbar from '$lib/features/overlays/components/builder/Toolbar.svelte';
 	import Canvas from '$lib/features/overlays/components/builder/Canvas.svelte';
-	import AIAssistant from '$lib/features/overlays/components/builder/AIAssistant.svelte';
 	import PropertyEditor from '$lib/features/overlays/components/builder/PropertyEditor.svelte';
-
-	type AiMessage = { role: 'user' | 'assistant'; content: string };
 
 	// ── State ─────────────────────────────────────────────────────────────────
 	let overlayName = $state('Cargando...');
@@ -28,9 +25,6 @@
 	let canvasWidth = $state(1920);
 	let canvasHeight = $state(1080);
 	let canvasAreaRef = $state<HTMLDivElement | null>(null);
-	let aiMessages = $state<AiMessage[]>([]);
-	let aiInput = $state('');
-	let aiLoading = $state(false);
 	let saving = $state(false);
 	
 	const overlayId = $derived(page.params.id);
@@ -241,36 +235,6 @@
 		scheduleSave();
 	}
 
-	async function sendToAi() {
-		const msg = aiInput.trim();
-		if (!msg || aiLoading) return;
-		aiInput = '';
-		aiLoading = true;
-		aiMessages = [...aiMessages, { role: 'user', content: msg }];
-
-		try {
-			const res = await post<{ success: boolean; data: { elements: OverlayElement[] }; error?: string }>(
-				'/overlays/generate',
-				{ description: selected ? `Modifica elemento "${selected.id}": ${msg}` : msg, current_config: { elements } }
-			);
-			if (!res.success) throw new Error(res.error);
-			
-			const generated = res.data.elements ?? [];
-			if (selected) {
-				elements = elements.map(el => generated.find(g => g.id === el.id) ?? el);
-			} else {
-				const existingIds = new Set(elements.map(e => e.id));
-				elements = [...elements.map(el => generated.find(g => g.id === el.id) ?? el), ...generated.filter(g => !existingIds.has(g.id))];
-			}
-			aiMessages = [...aiMessages, { role: 'assistant', content: 'Hecho.' }];
-			scheduleSave();
-		} catch (e: any) {
-			aiMessages = [...aiMessages, { role: 'assistant', content: `Error: ${e.message}` }];
-		} finally {
-			aiLoading = false;
-		}
-	}
-
 	async function testAlert() {
 		const eventType = selected?.trigger?.event ?? elements.find(e => e.type === 'alert')?.trigger?.event ?? 'channel.subscribe';
 		try {
@@ -320,14 +284,6 @@
 					onDeleteSelected={deleteSelected}
 				/>
 			</div>
-
-			<AIAssistant 
-				messages={aiMessages} 
-				bind:input={aiInput} 
-				loading={aiLoading} 
-				{selected} 
-				onSend={sendToAi} 
-			/>
 		</div>
 
 		<PropertyEditor

@@ -1,3 +1,29 @@
+<script module lang="ts">
+	import { Zap } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+	import { ALERT_EVENTS, ANIMATIONS, ALERT_EVENT_VARS } from '../constants';
+
+	export const meta: WidgetMeta = {
+		label: 'Alerta',
+		icon: Zap,
+		defaults: {
+			width: 420, height: 160,
+			trigger: { event: 'channel.subscribe', filter_user: null },
+			template: '¡{user_name} se suscribió! 🎉',
+			style: { background: '#000000cc', accent: '#9333ea', border_radius: 20, glow: true, duration_ms: 5000, animation: 'scale_in', font_size: 28, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
+		hasTemplate: true,
+		templateVars: (el) => ALERT_EVENT_VARS[el.trigger?.event ?? ''] ?? [],
+		fields: [
+			{ key: 'trigger.event', type: 'select', label: 'Evento', options: ALERT_EVENTS },
+			{ key: 'trigger.filter_user', type: 'text', label: 'Filtro usuario (opcional)', placeholder: 'Broadcaster...' },
+			{ key: 'style.duration_ms', type: 'number', label: 'Duración (ms)', fallback: 5000 },
+			{ key: 'style.animation', type: 'select', label: 'Animación', options: ANIMATIONS }
+		]
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement, ActiveAlert } from '../types';
 	import { scale, fade, fly } from 'svelte/transition';

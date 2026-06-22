@@ -1,3 +1,27 @@
+<script module lang="ts">
+	import { BarChart2 } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+	import { STAT_SOURCES } from '../constants';
+
+	export const meta: WidgetMeta = {
+		label: 'Estadística',
+		shortLabel: 'Dato',
+		icon: BarChart2,
+		defaults: {
+			width: 220, height: 60,
+			data_source: 'subscribers.active_total',
+			template: '⭐ {value} subs',
+			style: { background: '#000000aa', accent: '#9333ea', border_radius: 12, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 22, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
+		hasTemplate: true,
+		templateVars: [{ name: 'value', label: 'Valor' }],
+		fields: [
+			{ key: 'data_source', type: 'select', label: 'Fuente de datos', options: STAT_SOURCES }
+		]
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement } from '../types';
 

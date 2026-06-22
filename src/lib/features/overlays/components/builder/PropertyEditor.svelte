@@ -2,11 +2,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import { Layers, Trash2, Copy, ImageIcon, X, Loader, ChevronUp, ChevronDown, Maximize, Minimize, Expand, Zap, BarChart2, MessageSquare, Type, TrendingUp, Code } from '@lucide/svelte';
-	import { upload } from '$lib/core/api/client';
-	import { show } from '$lib/core/stores/toast.svelte';
-	import BackgroundGallery from './BackgroundGallery.svelte';
-	import type { OverlayElement, ElementStyle } from '../../index';
+	import { tick } from 'svelte';
+	import { Layers, Trash2, Copy, ImageIcon, ChevronUp, ChevronDown, Maximize, Minimize } from '@lucide/svelte';
+	import { WIDGET_REGISTRY } from '../../index';
+	import type { OverlayElement, ElementStyle, EditorField } from '../../index';
 
 	let {
 		selected,
@@ -30,122 +29,74 @@
 		canvasHeight?: number;
 	} = $props();
 
-	const WIDGET_ICONS: Record<string, any> = {
-		alert: Zap,
-		stat: BarChart2,
-		chat_highlight: MessageSquare,
-		banner: Type,
-		progress_bar: TrendingUp,
-		media: ImageIcon,
-		custom_code: Code
-	};
+	// Icons + labels derived from each widget's meta (no per-type hardcoding).
+	const WIDGET_ICONS: Record<string, any> = Object.fromEntries(
+		Object.entries(WIDGET_REGISTRY).map(([k, v]) => [k, v.meta.icon])
+	);
+	const ELEMENT_LABELS: Record<string, string> = Object.fromEntries(
+		Object.entries(WIDGET_REGISTRY).map(([k, v]) => [k, v.meta.label])
+	);
 
-	let fileInputRef = $state<HTMLInputElement | null>(null);
-	let uploading = $state(false);
-	let activeTab = $state<'html' | 'css' | 'js'>('html');
-	let lastSelectedId = $state<string | null>(null);
+	const meta = $derived(selected ? WIDGET_REGISTRY[selected.type]?.meta : null);
+	const EditorComponent = $derived(meta?.Editor ?? null);
+	const caps = $derived(meta?.style ?? {});
 
-	$effect(() => {
-		if (selected) {
-			if (selected.id !== lastSelectedId) {
-				lastSelectedId = selected.id;
-				activeTab = 'html';
-			}
-		} else {
-			lastSelectedId = null;
-		}
-	});
+	// Template variable chips — static list or computed from the element (e.g. alert event).
+	const templateVars = $derived(
+		!selected || !meta?.templateVars
+			? []
+			: typeof meta.templateVars === 'function'
+				? meta.templateVars(selected)
+				: meta.templateVars
+	);
 
-	const hasBackground   = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar'].includes(selected.type));
-	const hasAccent       = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar', 'media'].includes(selected.type));
-	const hasTextColor    = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner'].includes(selected.type));
-	const hasBorderRadius = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar', 'media'].includes(selected.type));
-	const hasFontSize     = $derived(selected && ['alert', 'stat', 'chat_highlight', 'banner', 'progress_bar'].includes(selected.type));
-	const hasGlow         = $derived(selected && ['alert', 'stat', 'progress_bar', 'media'].includes(selected.type));
+	let templateRef = $state<HTMLTextAreaElement | null>(null);
 
-	async function handleFile(file: File) {
-		const allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
-		if (!allowed.includes(file.type)) {
-			show('Formato no soportado. Usá PNG, JPG, GIF, WebP, MP4 o WebM.', 'error');
-			return;
-		}
-		uploading = true;
-		try {
-			const res = await upload<{ success: boolean; data: { url: string; type: 'image' | 'video' }; error?: string }>(
-				'/overlays/upload-background', file
-			);
-			if (!res.success) throw new Error(res.error);
-			updateConfig({ url: res.data.url });
-		} catch (e: any) {
-			show(`Error al subir: ${e.message}`, 'error');
-		} finally {
-			uploading = false;
+	async function insertVar(name: string) {
+		if (!selected) return;
+		const token = `{${name}}`;
+		const cur = selected.template ?? '';
+		const ta = templateRef;
+		const start = ta?.selectionStart ?? cur.length;
+		const end = ta?.selectionEnd ?? cur.length;
+		onUpdate({ template: cur.slice(0, start) + token + cur.slice(end) });
+		await tick();
+		if (ta) {
+			const pos = start + token.length;
+			ta.focus();
+			ta.setSelectionRange(pos, pos);
 		}
 	}
-
-	function onFileInput(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0];
-		if (file) handleFile(file);
-		(e.target as HTMLInputElement).value = '';
-	}
-
-	function fitToCanvas() {
-		onUpdate({
-			x: 0,
-			y: 0,
-			width: canvasWidth,
-			height: canvasHeight
-		});
-		onMoveLayer('back');
-	}
-
-	const ANIMATIONS: { value: ElementStyle['animation']; label: string }[] = [
-		{ value: 'scale_in', label: 'Escalar' },
-		{ value: 'fade_in', label: 'Desvanecer' },
-		{ value: 'slide_up', label: 'Deslizar arriba' },
-		{ value: 'slide_down', label: 'Deslizar abajo' }
-	];
-
-	const STAT_SOURCES = [
-		{ value: 'subscribers.active_total', label: 'Suscriptores Activos' },
-		{ value: 'followers.total',          label: 'Total de Seguidores' },
-		{ value: 'stream.viewer_count',      label: 'Espectadores Actuales' },
-		{ value: 'bits.total',               label: 'Total de Bits' },
-		{ value: 'stream.online',            label: 'Estado Online (true/false)' }
-	];
-
-	const ALERT_EVENTS = [
-		{ value: 'channel.follow',            label: 'Seguimiento (Follow)' },
-		{ value: 'channel.subscribe',         label: 'Suscripción / Resub' },
-		{ value: 'channel.subscription.gift', label: 'Sub Regalada' },
-		{ value: 'channel.cheer',             label: 'Bits (Cheer)' },
-		{ value: 'channel.raid',              label: 'Raid' },
-		{ value: 'chat.message',              label: 'Mensaje de Chat' }
-	];
 
 	function updateStyle(styleUpdates: Partial<ElementStyle>) {
 		if (!selected) return;
-		onUpdate({
-			style: { ...selected.style, ...styleUpdates }
-		});
+		onUpdate({ style: { ...selected.style, ...styleUpdates } });
 	}
 
-	function updateConfig(configUpdates: Record<string, any>) {
+	// Generic read/write for declarative fields against dot-paths
+	// like 'data_source', 'config.target', 'trigger.event', 'style.duration_ms'.
+	function getField(field: EditorField): any {
+		if (!selected) return undefined;
+		let v: any = selected;
+		for (const p of field.key.split('.')) v = v?.[p];
+		return v;
+	}
+
+	function writeField(key: string, value: any) {
 		if (!selected) return;
-		onUpdate({
-			config: { ...(selected.config || {}), ...configUpdates }
-		});
+		const parts = key.split('.');
+		if (parts.length === 1) {
+			onUpdate({ [parts[0]]: value } as Partial<OverlayElement>);
+		} else {
+			const [root, child] = parts;
+			const current = (selected as any)[root] ?? {};
+			onUpdate({ [root]: { ...current, [child]: value } } as Partial<OverlayElement>);
+		}
 	}
 
-	const ELEMENT_LABELS: Record<string, string> = {
-		alert: 'Alerta',
-		stat: 'Estadística',
-		chat_highlight: 'Chat Highlight',
-		banner: 'Banner',
-		progress_bar: 'Progreso',
-		media: 'Media',
-		custom_code: 'Código'
-	};
+	function setField(field: EditorField, raw: string) {
+		writeField(field.key, field.type === 'number' ? (parseInt(raw) || (field.fallback ?? 0)) : raw);
+	}
 </script>
 
 <div class="w-80 border-l bg-card/30 flex flex-col overflow-hidden">
@@ -225,177 +176,92 @@
 					</div>
 				</div>
 
-				{#if selected.type === 'media'}
-					<div class="space-y-4">
-						<div>
-							<p class="text-xs font-medium text-muted-foreground mb-2">Archivo Media</p>
-							<div class="grid grid-cols-2 gap-2">
-								<Button variant="outline" size="sm" class="h-8 text-[10px]" onclick={() => fileInputRef?.click()} disabled={uploading}>
-									{#if uploading}
-										<Loader class="w-3 h-3 mr-1.5 animate-spin" /> Subiendo…
-									{:else}
-										<ImageIcon class="w-3 h-3 mr-1.5" /> Subir archivo
-										{/if}
-										</Button>								<Button variant="secondary" size="sm" class="h-8 text-[10px]" onclick={fitToCanvas}>
-									<Expand class="w-3 h-3 mr-1.5" /> Fondo total
-								</Button>
-							</div>
-							<input bind:this={fileInputRef} type="file" class="hidden" onchange={onFileInput} />
-						</div>
-
-						<div>
-							<p class="text-xs font-medium text-muted-foreground mb-2 text-center opacity-50">— O URL directa —</p>
-							<Input 
-								class="h-8 text-xs font-mono" 
-								placeholder="https://... o /api/uploads/..." 
-								value={selected.config?.url as string | undefined} 
-								oninput={(e) => updateConfig({ url: (e.target as HTMLInputElement).value })} 
-							/>
-						</div>
-
-						<BackgroundGallery
-							currentImage={selected.config?.url as string | undefined}
-							onSelect={(url) => updateConfig({ url })}
+				<!-- Bespoke editor UI provided by the widget (e.g. media, custom_code) -->
+				{#if EditorComponent}
+					{#key selected.id}
+						<EditorComponent
+							element={selected}
+							{onUpdate}
+							{onMoveLayer}
+							{canvasWidth}
+							{canvasHeight}
 						/>
-					</div>
+					{/key}
 				{/if}
 
-				{#if selected.type === 'alert'}
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Evento</p>
-						<select
-							class="w-full h-8 rounded-md border bg-background px-2 text-xs"
-							value={selected.trigger?.event}
-							onchange={(e) => onUpdate({ trigger: { ...selected.trigger!, event: (e.target as HTMLSelectElement).value } })}
-						>
-							{#each ALERT_EVENTS as ev}
-								<option value={ev.value}>{ev.label}</option>
-							{/each}
-						</select>
-					</div>
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Filtro usuario (opcional)</p>
-						<Input class="h-8 text-xs" placeholder="Broadcaster..." value={selected.trigger?.filter_user} oninput={(e) => onUpdate({ trigger: { ...selected.trigger!, filter_user: (e.target as HTMLInputElement).value } })} />
-					</div>
-				{/if}
-
-				{#if selected.type === 'stat' || selected.type === 'progress_bar'}
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Fuente de datos</p>
-						<select
-							class="w-full h-8 rounded-md border bg-background px-2 text-xs"
-							value={selected.data_source}
-							onchange={(e) => onUpdate({ data_source: (e.target as HTMLSelectElement).value })}
-						>
-							{#each STAT_SOURCES as src}
-								<option value={src.value}>{src.label}</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-
-				{#if selected.type === 'progress_bar'}
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Meta (Target)</p>
-						<Input type="number" class="h-8 text-xs" value={selected.config?.target} oninput={(e) => updateConfig({ target: parseInt((e.target as HTMLInputElement).value) || 100 })} />
-					</div>
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Etiqueta</p>
-						<Input class="h-8 text-xs" value={selected.config?.label} oninput={(e) => updateConfig({ label: (e.target as HTMLInputElement).value })} />
-					</div>
-				{/if}
-
-				{#if selected.type === 'custom_code'}
-					<div class="space-y-4">
-						<p class="text-xs font-medium text-muted-foreground uppercase tracking-tight">Código Personalizado</p>
-						<div class="flex border-b border-border">
-							<button 
-								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'html' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-								onclick={() => activeTab = 'html'}
+				<!-- Declarative config/trigger fields from the widget meta -->
+				{#each meta?.fields ?? [] as field (field.key)}
+					{#if field.type === 'toggle'}
+						{@const on = (getField(field) ?? field.default) === true}
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-medium text-muted-foreground">{field.label}</p>
+							<button
+								type="button"
+								class="text-[10px] px-2.5 py-1 rounded border font-bold transition-colors {on ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'}"
+								onclick={() => writeField(field.key, !on)}
 							>
-								HTML
-							</button>
-							<button 
-								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'css' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-								onclick={() => activeTab = 'css'}
-							>
-								CSS
-							</button>
-							<button 
-								class="flex-1 pb-1.5 text-xs font-semibold border-b-2 transition-colors {activeTab === 'js' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-								onclick={() => activeTab = 'js'}
-							>
-								JS
+								{on ? 'ACTIVO' : 'DESACTIVADO'}
 							</button>
 						</div>
-
-						{#if activeTab === 'html'}
-							<div>
-								<p class="text-[10px] font-medium text-muted-foreground mb-1">Estructura HTML</p>
+					{:else}
+						<div>
+							<p class="text-xs font-medium text-muted-foreground mb-2">{field.label}</p>
+							{#if field.type === 'select'}
+								<select
+									class="w-full h-8 rounded-md border bg-background px-2 text-xs"
+									value={getField(field) ?? ''}
+									onchange={(e) => setField(field, (e.target as HTMLSelectElement).value)}
+								>
+									{#each field.options ?? [] as opt (opt.value)}
+										<option value={opt.value}>{opt.label}</option>
+									{/each}
+								</select>
+							{:else if field.type === 'textarea'}
 								<textarea
-									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
-									value={selected.config?.html as string ?? ''}
-									oninput={(e) => updateConfig({ html: (e.target as HTMLTextAreaElement).value })}
-									placeholder="<div class='custom'>...</div>"
+									class="w-full min-h-[80px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+									value={getField(field) ?? ''}
+									oninput={(e) => setField(field, (e.target as HTMLTextAreaElement).value)}
+									placeholder={field.placeholder}
 								></textarea>
-							</div>
-						{:else if activeTab === 'css'}
-							<div>
-								<p class="text-[10px] font-medium text-muted-foreground mb-1">Estilos CSS</p>
-								<textarea
-									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
-									value={selected.config?.css as string ?? ''}
-									oninput={(e) => updateConfig({ css: (e.target as HTMLTextAreaElement).value })}
-									placeholder={".custom { color: purple; }"}
-								></textarea>
-							</div>
-						{:else if activeTab === 'js'}
-							<div>
-								<p class="text-[10px] font-medium text-muted-foreground mb-1">Script JavaScript</p>
-								<textarea
-									class="w-full min-h-[220px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
-									value={selected.config?.js as string ?? ''}
-									oninput={(e) => updateConfig({ js: (e.target as HTMLTextAreaElement).value })}
-									placeholder={"window.addEventListener('streamupdate', (e) => { ... })"}
-								></textarea>
-								<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">
-									Escuchá <code>streamupdate</code> en window para datos en vivo.
-								</p>
-							</div>
-						{/if}
-					</div>
-				{/if}
+							{:else}
+								<Input
+									type={field.type === 'number' ? 'number' : 'text'}
+									class="h-8 text-xs"
+									value={getField(field) ?? ''}
+									placeholder={field.placeholder}
+									oninput={(e) => setField(field, (e.target as HTMLInputElement).value)}
+								/>
+							{/if}
+						</div>
+					{/if}
+				{/each}
 
 				<!-- Content Template -->
-				{#if selected.type !== 'media' && selected.type !== 'custom_code'}
+				{#if meta?.hasTemplate}
 					<div>
 						<p class="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-tight">Template HTML/Text</p>
 						<textarea
+							bind:this={templateRef}
 							class="w-full min-h-[100px] p-3 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
 							value={selected.template}
 							oninput={(e) => onUpdate({ template: (e.target as HTMLTextAreaElement).value })}
 						></textarea>
-						<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">Usa {`{user_name}`}, {`{bits}`}, etc.</p>
-					</div>
-				{/if}
-
-				<!-- Animation -->
-				{#if selected.type === 'alert'}
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Duración (ms)</p>
-						<Input type="number" class="h-8 text-xs" value={selected.style.duration_ms} oninput={(e) => updateStyle({ duration_ms: parseInt((e.target as HTMLInputElement).value) || 5000 })} />
-					</div>
-					<div>
-						<p class="text-xs font-medium text-muted-foreground mb-2">Animación</p>
-						<select
-							class="w-full h-8 rounded-md border bg-background px-2 text-xs"
-							value={selected.style.animation}
-							onchange={(e) => updateStyle({ animation: (e.target as HTMLSelectElement).value as ElementStyle['animation'] })}
-						>
-							{#each ANIMATIONS as anim}
-								<option value={anim.value}>{anim.label}</option>
-							{/each}
-						</select>
+						{#if templateVars.length > 0}
+							<div class="flex flex-wrap gap-1 mt-2">
+								{#each templateVars as v (v.name)}
+									<button
+										type="button"
+										class="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-mono hover:bg-primary/20 transition-colors"
+										title={`Insertar ${v.label}`}
+										onclick={() => insertVar(v.name)}
+									>
+										{`{${v.name}}`}
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-[9px] text-muted-foreground mt-1 px-1 italic">Usa {`{user_name}`}, {`{bits}`}, etc.</p>
+						{/if}
 					</div>
 				{/if}
 
@@ -403,7 +269,7 @@
 				<div>
 					<p class="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-tight">Visuales</p>
 					<div class="space-y-3">
-						{#if hasBackground}
+						{#if caps.background}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Fondo</Label>
 								<div class="flex items-center gap-1.5">
@@ -422,7 +288,7 @@
 							</div>
 						{/if}
 
-						{#if hasAccent}
+						{#if caps.accent}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Acento</Label>
 								<div class="flex items-center gap-1.5">
@@ -441,7 +307,7 @@
 							</div>
 						{/if}
 
-						{#if hasTextColor}
+						{#if caps.textColor}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Texto</Label>
 								<div class="flex items-center gap-1.5">
@@ -460,7 +326,7 @@
 							</div>
 						{/if}
 
-						{#if hasBorderRadius}
+						{#if caps.borderRadius}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Border radius</Label>
 								<Input
@@ -472,7 +338,7 @@
 							</div>
 						{/if}
 
-						{#if hasFontSize}
+						{#if caps.fontSize}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Font size</Label>
 								<Input
@@ -484,7 +350,7 @@
 							</div>
 						{/if}
 
-						{#if hasGlow}
+						{#if caps.glow}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Glow</Label>
 								<button

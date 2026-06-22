@@ -1,3 +1,21 @@
+<script module lang="ts">
+	import { Type } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+
+	export const meta: WidgetMeta = {
+		label: 'Banner',
+		shortLabel: 'Texto',
+		icon: Type,
+		defaults: {
+			width: 500, height: 70,
+			template: 'Mi Stream',
+			style: { background: '#000000cc', accent: '#9333ea', border_radius: 10, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 24, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
+		hasTemplate: true
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement } from '../types';
 

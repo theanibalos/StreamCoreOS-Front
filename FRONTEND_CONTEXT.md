@@ -42,8 +42,8 @@ src/
 │   │   ├── chat/
 │   │   ├── dashboard/
 │   │   ├── moderation/
-│   │   ├── overlays/            # Modular system: WIDGET_REGISTRY, DEFAULT_ELEMENT_CONFIGS
-│   │   │   └── components/      Widget components + builder/ folder
+│   │   ├── overlays/            # Meta-driven widgets: WIDGET_REGISTRY {component, meta}
+│   │   │   └── components/      Widget components (export `meta`) + builder/ + editors/
 │   │   ├── subscribers/
 │   │   ├── system/
 │   │   ├── timers/

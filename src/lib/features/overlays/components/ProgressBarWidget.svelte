@@ -1,3 +1,31 @@
+<script module lang="ts">
+	import { TrendingUp } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+	import { STAT_SOURCES } from '../constants';
+
+	export const meta: WidgetMeta = {
+		label: 'Progreso',
+		shortLabel: 'Meta',
+		icon: TrendingUp,
+		defaults: {
+			width: 700, height: 90,
+			data_source: 'subscribers.active_total',
+			config: { label: 'Meta de subs', target: 500, baseline: 0, show_count: true, show_percentage: false },
+			style: { background: '#18181bcc', accent: '#9147ff', border_radius: 14, glow: true, duration_ms: 0, animation: 'fade_in', font_size: 20, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
+		hasTemplate: false,
+		fields: [
+			{ key: 'data_source', type: 'select', label: 'Fuente de datos', options: STAT_SOURCES },
+			{ key: 'config.target', type: 'number', label: 'Meta (Target)' },
+			{ key: 'config.baseline', type: 'number', label: 'Empezar desde (offset)', placeholder: '0 = total' },
+			{ key: 'config.label', type: 'text', label: 'Etiqueta' },
+			{ key: 'config.show_count', type: 'toggle', label: 'Mostrar conteo', default: true },
+			{ key: 'config.show_percentage', type: 'toggle', label: 'Mostrar %', default: false }
+		]
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement } from '../types';
 
@@ -12,6 +40,9 @@
 	const cfg = $derived(element.config ?? {});
 	const label       = $derived(cfg.label ?? '');
 	const target      = $derived(Number(cfg.target) || 100);
+	// Optional offset: subtract from the live value so the bar counts "from now"
+	// (e.g. baseline = current subs, target = 5 → goal of +5 from that point).
+	const baseline    = $derived(Number(cfg.baseline) || 0);
 	const showCount   = $derived(cfg.show_count !== false);
 	const showPct     = $derived(cfg.show_percentage ?? false);
 	const accent      = $derived(element.style.accent ?? '#9147ff');
@@ -22,7 +53,7 @@
 	const glow        = $derived(element.style.glow ?? true);
 	const opacity     = $derived((element.style.opacity ?? 100) / 100);
 
-	const current = $derived(Math.max(0, parseFloat(statValues[element.id] ?? '0') || 0));
+	const current = $derived(Math.max(0, (parseFloat(statValues[element.id] ?? '0') || 0) - baseline));
 	const percentage = $derived(Math.min(100, (current / target) * 100));
 	const completed  = $derived(percentage >= 100);
 

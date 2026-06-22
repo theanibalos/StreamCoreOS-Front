@@ -1,3 +1,26 @@
+<script module lang="ts">
+	import { Code } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+	import CustomCodeEditor from './editors/CustomCodeEditor.svelte';
+
+	export const meta: WidgetMeta = {
+		label: 'Código',
+		icon: Code,
+		defaults: {
+			width: 400, height: 300,
+			config: {
+				html: '<div class="card">\n  <h2>¡Hola Stream!</h2>\n  <p>Seguidores: <span id="followers">0</span></p>\n</div>',
+				css: '.card {\n  background: rgba(0, 0, 0, 0.7);\n  border: 2px solid #9147ff;\n  border-radius: 12px;\n  padding: 20px;\n  text-align: center;\n  box-shadow: 0 4px 20px rgba(145, 71, 255, 0.4);\n}\nh2 {\n  margin: 0 0 10px 0;\n  color: #9147ff;\n}',
+				js: '// Escucha actualizaciones del stream en tiempo real\nwindow.addEventListener("streamupdate", (e) => {\n  const stats = e.detail.stats;\n  const followersEl = document.getElementById("followers");\n  if (followersEl) {\n    followersEl.innerText = stats["followers.total"] || "0";\n  }\n});'
+			},
+			style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 16, text_color: '#ffffff', opacity: 100 }
+		},
+		style: {},
+		hasTemplate: false,
+		Editor: CustomCodeEditor
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement, ActiveAlert, ChatMessage } from '../types';
 	import { onMount } from 'svelte';
@@ -17,6 +40,7 @@
 	const html = $derived((element.config?.html as string) ?? '');
 	const css  = $derived((element.config?.css as string) ?? '');
 	const js   = $derived((element.config?.js as string) ?? '');
+	const opacity = $derived((element.style.opacity ?? 100) / 100);
 
 	let iframeRef = $state<HTMLIFrameElement | null>(null);
 
@@ -113,7 +137,7 @@
 	});
 </script>
 
-<div class="custom-code-root">
+<div class="custom-code-root" style="opacity: {opacity};">
 	{#if !html && !css && !js}
 		<div class="placeholder">
 			<span>Código</span>

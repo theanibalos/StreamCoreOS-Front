@@ -1,3 +1,22 @@
+<script module lang="ts">
+	import { MessageSquare } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+
+	export const meta: WidgetMeta = {
+		label: 'Chat Highlight',
+		shortLabel: 'Chat',
+		icon: MessageSquare,
+		defaults: {
+			width: 380, height: 500,
+			trigger: { event: 'chat.message', filter_user: null },
+			template: '',
+			style: { background: 'rgba(24, 24, 27, 0.82)', accent: '#9333ea', border_radius: 14, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 15, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { background: true, accent: true, borderRadius: true, fontSize: true, glow: true },
+		hasTemplate: false
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement, ChatMessage, ChatFragment } from '../types';
 	import { fly } from 'svelte/transition';
@@ -15,6 +34,8 @@
 	const radius  = $derived(element.style.border_radius ?? 14);
 	const glow    = $derived(element.style.glow ?? false);
 	const accent  = $derived(element.style.accent ?? '#9333ea');
+	const bg      = $derived(element.style.background ?? 'rgba(24, 24, 27, 0.82)');
+	const fs      = $derived(element.style.font_size ?? 15);
 	const opacity = $derived((element.style.opacity ?? 100) / 100);
 
 	type BadgeMap = Record<string, Record<string, string>>;
@@ -67,7 +88,7 @@
 		{@const frags  = getFragments(msg)}
 		{@const color  = getColor(msg)}
 		<div class="chat-msg" in:fly={{ y: 16, duration: 250 }}
-			style="font-size: 15px; padding: 0.25em 0.6em; border-radius: 4px;"
+			style="font-size: {fs}px; background: {bg}; padding: 0.25em 0.6em; border-radius: 4px;"
 		>
 			{#if badges.length > 0}
 				<span class="badge-row">

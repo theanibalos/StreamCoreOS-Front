@@ -12,7 +12,9 @@ export type ElementStyle = {
 
 export type OverlayElement = {
 	id: string;
-	type: 'alert' | 'stat' | 'chat_highlight' | 'banner' | 'progress_bar' | 'media' | 'custom_code';
+	// Widget type key — must match an entry in WIDGET_REGISTRY (see index.ts).
+	// Known types: alert, stat, chat_highlight, banner, progress_bar, media, custom_code.
+	type: string;
 	x: number;
 	y: number;
 	width: number;
@@ -45,4 +47,60 @@ export type ChatMessage = {
 	color?: string;
 	badges?: Record<string, string>;
 	fragments?: ChatFragment[];
+};
+
+// ── Widget self-description (editor schema) ─────────────────────────────
+// Each widget exports a `meta` (see its .svelte module script) so the builder
+// can render its toolbar entry and property editor without per-type code.
+
+export type EditorFieldType = 'text' | 'textarea' | 'number' | 'select' | 'toggle';
+
+export type EditorField = {
+	/** Dot-path into the element, e.g. 'data_source', 'config.target', 'trigger.event', 'style.duration_ms'. */
+	key: string;
+	type: EditorFieldType;
+	label: string;
+	/** Options for `type: 'select'`. */
+	options?: { value: string; label: string }[];
+	placeholder?: string;
+	min?: number;
+	max?: number;
+	/** Fallback shown for `type: 'toggle'` when the value is undefined. */
+	default?: boolean;
+	/** Fallback for `type: 'number'` when the input is empty/invalid (default 0). */
+	fallback?: number;
+};
+
+/** A template variable a widget exposes as a clickable chip in the editor. */
+export type TemplateVar = { name: string; label: string };
+
+/** Which shared style controls the property editor shows for this widget. */
+export type WidgetStyleCaps = {
+	background?: boolean;
+	accent?: boolean;
+	textColor?: boolean;
+	borderRadius?: boolean;
+	fontSize?: boolean;
+	glow?: boolean;
+};
+
+export type WidgetMeta = {
+	/** Display name (property editor header + layers list). */
+	label: string;
+	/** Short label for the toolbar button (falls back to `label`). */
+	shortLabel?: string;
+	/** Lucide icon component. */
+	icon: any;
+	/** Default element properties applied when a new instance is created. */
+	defaults: Partial<OverlayElement>;
+	/** Shared style controls to render. */
+	style?: WidgetStyleCaps;
+	/** Whether the HTML/text template editor is shown. */
+	hasTemplate?: boolean;
+	/** Variables shown as insertable chips above the template editor. Static or per-element. */
+	templateVars?: TemplateVar[] | ((el: OverlayElement) => TemplateVar[]);
+	/** Declarative config/trigger fields. */
+	fields?: EditorField[];
+	/** Optional bespoke editor component for custom UI (receives element, onUpdate, …). */
+	Editor?: any;
 };

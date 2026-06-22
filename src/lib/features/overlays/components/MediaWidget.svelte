@@ -1,3 +1,28 @@
+<script module lang="ts">
+	import { ImageIcon } from '@lucide/svelte';
+	import type { WidgetMeta } from '../types';
+	import MediaEditor from './editors/MediaEditor.svelte';
+
+	export const meta: WidgetMeta = {
+		label: 'Media',
+		icon: ImageIcon,
+		defaults: {
+			width: 300, height: 300,
+			config: { url: '', fit: 'cover' },
+			style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 0, text_color: '#ffffff', opacity: 100 }
+		},
+		style: { accent: true, borderRadius: true, glow: true },
+		hasTemplate: false,
+		fields: [
+			{ key: 'config.fit', type: 'select', label: 'Ajuste', options: [
+				{ value: 'cover', label: 'Cubrir (recorta)' },
+				{ value: 'contain', label: 'Contener (completa)' }
+			] }
+		],
+		Editor: MediaEditor
+	};
+</script>
+
 <script lang="ts">
 	import type { OverlayElement } from '../types';
 	import { onMount } from 'svelte';

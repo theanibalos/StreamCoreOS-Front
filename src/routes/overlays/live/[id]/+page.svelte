@@ -245,7 +245,7 @@
 	<div class="canvas" style="--overlay-scale: 1;">
 		{#key version}
 			{#each elements as el, i (el.id)}
-				{@const Widget = WIDGET_REGISTRY[el.type]}
+				{@const Widget = WIDGET_REGISTRY[el.type]?.component}
 				{#if Widget}
 					<div style={wrapperStyle(el, i)}>
 						<Widget 

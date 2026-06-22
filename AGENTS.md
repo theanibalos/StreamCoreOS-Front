@@ -175,36 +175,80 @@ let {
 } = $props();
 ```
 
-Types are in `src/lib/features/overlays/types.ts`.
+Types are in `src/lib/features/overlays/types.ts`. Note: `OverlayElement.type` is
+just `string` — the source of truth for valid types is `WIDGET_REGISTRY` in
+`index.ts`, so you do **not** edit `types.ts` to add a widget.
 
-**To add a new widget type, touch exactly these files:**
+**The system is meta-driven.** Each widget self-describes its toolbar entry, defaults
+and property-editor controls via an exported `meta` (`WidgetMeta`). The `WIDGET_REGISTRY`
+in `index.ts` maps each type to `{ component, meta }`. From that registry, everything else
+is derived automatically:
+- **Canvas** (builder) and **Live** routes render `WIDGET_REGISTRY[type].component`.
+- **Toolbar** builds its buttons from each `meta.icon` / `meta.label`.
+- **PropertyEditor** renders style controls (`meta.style`), declarative fields
+  (`meta.fields`), the template editor (`meta.hasTemplate`), and any bespoke editor
+  (`meta.Editor`) — no per-type code.
+- **DEFAULT_ELEMENT_CONFIGS** is derived from each `meta.defaults`.
+
+So adding a widget is essentially: **create the component (with its `meta`) + add one
+line to `WIDGET_REGISTRY`.**
 
 ### 1. Create the component
 `src/lib/features/overlays/components/MyWidget.svelte`
 
-Look at `StatWidget.svelte` (data-driven) or `AlertWidget.svelte` (event-driven) as references.
-The component fills 100% of its wrapper div — do NOT set position/size yourself (the parent handles it).
+Two script blocks: a `<script module lang="ts">` that exports `meta`, plus the normal
+`<script lang="ts">`. Look at `StatWidget.svelte` (simple, declarative fields) or
+`MediaWidget.svelte` (bespoke `Editor`) as references. The component fills 100% of its
+wrapper div — do NOT set position/size yourself (the parent handles it).
 
-### 3. Register in the live page
-`src/routes/overlays/live/[id]/+page.svelte`
+```ts
+// <script module lang="ts">
+export const meta: WidgetMeta = {
+  label: 'My Widget',
+  shortLabel: 'Mine',          // optional, short label for the toolbar button
+  icon: SomeLucideIcon,
+  defaults: { width: 300, height: 100, /* style, config, trigger, data_source… */ },
+  style: { background: true, accent: true, fontSize: true },  // which shared controls show
+  hasTemplate: true,           // show the {value}/{user_name} template editor
+  templateVars: [{ name: 'value', label: 'Value' }],  // clickable chips above the template
+  fields: [                    // declarative config/trigger inputs
+    { key: 'data_source', type: 'select', label: 'Source', options: STAT_SOURCES },
+    { key: 'config.target', type: 'number', label: 'Target' },
+    { key: 'config.show_count', type: 'toggle', label: 'Show count', default: true }
+  ],
+  Editor: MyWidgetEditor       // optional: bespoke editor component for custom UI
+};
+```
 
-The route is thin; it imports `WIDGET_REGISTRY` from `$lib/features/overlays`. To add a widget type, just update the registry in the feature's index.
+Key `meta` properties that drive the editor:
+- **`style`** — which shared visual controls appear (`background`, `accent`, `textColor`,
+  `borderRadius`, `fontSize`, `glow`). Only declare what the component actually reads;
+  opacity + position/size/layers are always shown.
+- **`hasTemplate`** — shows the template textarea. Only `true` if the component renders
+  `element.template` (e.g. `chat_highlight`/`progress_bar` do NOT use it).
+- **`templateVars`** — array (or `(el) => array`) of `{ name, label }` rendered as
+  clickable chips that insert `{name}` at the cursor. Use a function for context-aware
+  vars (e.g. alert vars depend on the selected event — see `ALERT_EVENT_VARS`).
+- **`fields`** — declarative inputs. `key` is a dot-path into the element
+  (`data_source`, `config.target`, `trigger.event`, `style.duration_ms`…). Types:
+  `text`, `number`, `select` (needs `options`), `textarea`, `toggle` (boolean, optional
+  `default`). For UI too custom for fields (uploaders, tabbed code editors), ship an
+  `Editor` component under `components/editors/` — it receives
+  `{ element, onUpdate, onMoveLayer, canvasWidth, canvasHeight }`.
 
-### 4. Register in the builder page
-`src/routes/overlays/builder/[id]/+page.svelte`
+Shared option lists (`STAT_SOURCES`, `ALERT_EVENTS`, `ANIMATIONS`, `ALERT_EVENT_VARS`)
+live in `src/lib/features/overlays/constants.ts`.
 
-The builder is composed of modular components:
-- `BuilderHeader`: Title, Save, OBS URL, Test buttons.
-- `Toolbar`: Left sidebar with draggable element types.
-- `Canvas`: The 1920x1080 workspace.
-- `AIAssistant`: Bottom bar for AI commands.
-- `PropertyEditor`: Right panel for styles and config.
+### 2. Register it in the feature index
+`src/lib/features/overlays/index.ts` — import the component + its `meta`, then add one
+line to `WIDGET_REGISTRY`: `my_type: { component: MyWidget, meta: myMeta }`.
+That's it — toolbar, property editor and defaults all pick it up.
 
-**To add a new widget type, follow these steps in `src/lib/features/overlays/index.ts`:**
-1. Import and export your new `.svelte` component.
-2. Add it to `WIDGET_REGISTRY`.
-3. Add its default properties to `DEFAULT_ELEMENT_CONFIGS`.
-4. Update `createOverlayElement` if special logic is needed.
+> **Note:** the AI builder assistant (`AIAssistant.svelte` + `/overlays/generate`) is
+> currently **disabled** in the builder — the component file is kept but not mounted.
+> If you re-enable it, also update the AI system prompt
+> (`StreamCoreOS/domains/overlays/plugins/generate_overlay_plugin.py`) to teach it the
+> new `type` and its config/template rules.
 
 ---
 
@@ -214,12 +258,6 @@ The main `+layout.svelte` is an orchestrator. Complex UI is extracted to:
 - `$lib/features/auth/components/LoginForm.svelte`: Handled when not authenticated.
 - `$lib/core/components/Sidebar.svelte`: Main navigation and theme toggle.
 - `$lib/core/components/ScopesWarning.svelte`: Twitch permission alerts.
-
-
-### 4. Update the AI system prompt
-`StreamCoreOS/domains/overlays/plugins/generate_overlay_plugin.py`
-
-Add `my_type` to the `"type"` field docs and describe its rules (trigger, data_source, template vars, config shape, typical size).
 
 ### Data flow summary
 | Widget | Reads from | When it shows |
