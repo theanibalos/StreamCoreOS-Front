@@ -31,15 +31,23 @@
 		onTestAlert: () => void;
 	} = $props();
 
-	const selectedPreset = $derived(
-		PRESETS.find((p) => p.w === canvasWidth && p.h === canvasHeight) ?? PRESETS[PRESETS.length - 1]
+	let manualCustom = $state(false);
+
+	const matchedPreset = $derived(
+		PRESETS.find((p) => p.w !== 0 && p.w === canvasWidth && p.h === canvasHeight)
 	);
-	const isCustom = $derived(selectedPreset.w === 0);
+	const isCustom = $derived(manualCustom || !matchedPreset);
+	const selectIndex = $derived(
+		isCustom ? PRESETS.length - 1 : PRESETS.indexOf(matchedPreset!)
+	);
 
 	function onPresetChange(e: Event) {
 		const idx = parseInt((e.target as HTMLSelectElement).value);
 		const p = PRESETS[idx];
-		if (p.w !== 0) {
+		if (p.w === 0) {
+			manualCustom = true;
+		} else {
+			manualCustom = false;
 			canvasWidth = p.w;
 			canvasHeight = p.h;
 			onSave();
@@ -64,10 +72,10 @@
 		<Monitor class="w-3.5 h-3.5 shrink-0" />
 		<select
 			class="bg-transparent border-none outline-none text-xs cursor-pointer pr-1"
-			value={PRESETS.indexOf(selectedPreset)}
+			value={selectIndex}
 			onchange={onPresetChange}
 		>
-			{#each PRESETS as preset, i}
+			{#each PRESETS as preset, i (preset.label)}
 				<option value={i}>{preset.label}</option>
 			{/each}
 		</select>

@@ -35,7 +35,13 @@
 	// Diagnostic state for OBS
 	let version        = $state(0);
 	let lastSync       = $state<string>('--:--');
-	let connected      = $state(false);
+
+	// Per-stream connection state. The overlay is only "fully connected"
+	// when all three real-time channels are up.
+	let statsConnected = $state(false);
+	let chatConnected  = $state(false);
+	let alertsConnected = $state(false);
+	const connected = $derived(statsConnected && chatConnected && alertsConnected);
 
 	/**
 	 * Takes a new configuration and fresh live data, then applies them atomically.
@@ -86,6 +92,7 @@
 			const res = await get<{ success: boolean; data: { config: any, stats: any }; error?: string }>(`/overlays/${overlayId}/config?_=${Date.now()}`);
 
 			if (res.success) {
+				loadError = null;
 				applyAtomicUpdate(res.data.config, res.data.stats);
 				if (isPreview) applyPreviewData();
 			} else {
@@ -146,6 +153,8 @@
 					{ ...msg, timestamp: Date.now() }
 				];
 			}
+		}, (isConnected) => {
+			chatConnected = isConnected;
 		});
 	}
 
@@ -161,13 +170,15 @@
 					activeAlerts = activeAlerts.filter(a => a.expiresAt > Date.now());
 				}, duration + 500);
 			}
+		}, (isConnected) => {
+			alertsConnected = isConnected;
 		});
 	}
 
 	function connectStats() {
 		const id = overlayId;
 		return sse(`/overlays/stats?_=${Date.now()}`, (raw: any) => {
-			connected = true;
+			statsConnected = true;
 
 			// Case A: ATOMIC DESIGN + STATS PUSH
 			if (raw.__type === 'config_updated') {
@@ -193,7 +204,7 @@
 				lastSync = new Date().toLocaleTimeString();
 			}
 		}, (isConnected) => {
-			connected = isConnected;
+			statsConnected = isConnected;
 		});
 	}
 
