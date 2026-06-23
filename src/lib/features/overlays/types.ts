@@ -1,3 +1,5 @@
+import type { Component } from 'svelte';
+
 export type ElementStyle = {
 	background: string;
 	accent: string;
@@ -74,6 +76,15 @@ export type EditorField = {
 /** A template variable a widget exposes as a clickable chip in the editor. */
 export type TemplateVar = { name: string; label: string };
 
+/** Props every bespoke widget editor component receives. */
+export type WidgetEditorProps = {
+	element: OverlayElement;
+	onUpdate: (updates: Partial<OverlayElement>) => void;
+	onMoveLayer: (dir: 'up' | 'down' | 'front' | 'back') => void;
+	canvasWidth?: number;
+	canvasHeight?: number;
+};
+
 /** Which shared style controls the property editor shows for this widget. */
 export type WidgetStyleCaps = {
 	background?: boolean;
@@ -90,7 +101,7 @@ export type WidgetMeta = {
 	/** Short label for the toolbar button (falls back to `label`). */
 	shortLabel?: string;
 	/** Lucide icon component. */
-	icon: any;
+	icon: Component<any>;
 	/** Default element properties applied when a new instance is created. */
 	defaults: Partial<OverlayElement>;
 	/** Shared style controls to render. */
@@ -101,6 +112,6 @@ export type WidgetMeta = {
 	templateVars?: TemplateVar[] | ((el: OverlayElement) => TemplateVar[]);
 	/** Declarative config/trigger fields. */
 	fields?: EditorField[];
-	/** Optional bespoke editor component for custom UI (receives element, onUpdate, …). */
-	Editor?: any;
+	/** Optional bespoke editor component for custom UI (receives WidgetEditorProps). */
+	Editor?: Component<WidgetEditorProps>;
 };
