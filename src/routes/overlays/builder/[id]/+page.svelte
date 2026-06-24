@@ -235,6 +235,23 @@
 		scheduleSave();
 	}
 
+	let showUrlModal = $state(false);
+
+	async function copyLiveUrl() {
+		if (navigator.clipboard) {
+			try {
+				await navigator.clipboard.writeText(liveUrl);
+				show('URL copiada', 'success');
+				return;
+			} catch {}
+		}
+		showUrlModal = true;
+	}
+
+	function onUrlInputMount(node: HTMLInputElement) {
+		node.select();
+	}
+
 	async function testAlert() {
 		const eventType = selected?.trigger?.event ?? elements.find(e => e.type === 'alert')?.trigger?.event ?? 'channel.subscribe';
 		try {
@@ -260,7 +277,7 @@
 		{saving}
 		{liveUrl}
 		onSave={() => save(true)}
-		onCopyLiveUrl={() => { navigator.clipboard.writeText(liveUrl); show('URL copiada', 'success'); }}
+		onCopyLiveUrl={copyLiveUrl}
 		onTestAlert={testAlert}
 	/>
 
@@ -299,3 +316,29 @@
 		/>
 	</div>
 </div>
+
+{#if showUrlModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+		onclick={() => (showUrlModal = false)}
+	>
+		<div
+			class="bg-card border rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 flex flex-col gap-3"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<p class="text-sm font-semibold">URL para OBS</p>
+			<p class="text-xs text-muted-foreground">Copia esta URL manualmente (Ctrl+C / Cmd+C):</p>
+			<input
+				class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
+				readonly
+				value={liveUrl}
+				use:onUrlInputMount
+			/>
+			<button
+				class="self-end text-xs text-muted-foreground hover:text-foreground underline"
+				onclick={() => (showUrlModal = false)}
+			>Cerrar</button>
+		</div>
+	</div>
+{/if}

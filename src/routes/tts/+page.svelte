@@ -6,10 +6,22 @@
 	import { page } from '$app/state';
 	import { show } from '$lib/core/stores/toast.svelte';
 
-	function copyUrl() {
+	let urlModalText = $state('');
+
+	async function copyUrl() {
 		const fullUrl = `${page.url.origin}/overlays/tts`;
-		navigator.clipboard.writeText(fullUrl);
-		show('URL copiada al portapapeles', 'success');
+		if (navigator.clipboard) {
+			try {
+				await navigator.clipboard.writeText(fullUrl);
+				show('URL copiada al portapapeles', 'success');
+				return;
+			} catch {}
+		}
+		urlModalText = fullUrl;
+	}
+
+	function onUrlInputMount(node: HTMLInputElement) {
+		node.select();
 	}
 </script>
 
@@ -43,3 +55,29 @@
 		</TabsContent>
 	</Tabs>
 </div>
+
+{#if urlModalText}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+		onclick={() => (urlModalText = '')}
+	>
+		<div
+			class="bg-card border rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 flex flex-col gap-3"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<p class="text-sm font-semibold">URL para OBS</p>
+			<p class="text-xs text-muted-foreground">Copia esta URL manualmente (Ctrl+C / Cmd+C):</p>
+			<input
+				class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
+				readonly
+				value={urlModalText}
+				use:onUrlInputMount
+			/>
+			<button
+				class="self-end text-xs text-muted-foreground hover:text-foreground underline"
+				onclick={() => (urlModalText = '')}
+			>Cerrar</button>
+		</div>
+	</div>
+{/if}
