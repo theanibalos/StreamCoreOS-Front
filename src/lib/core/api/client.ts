@@ -56,18 +56,34 @@ export function sse<T>(
 	let es: EventSource;
 	let closed = false;
 	let retryTimeout: ReturnType<typeof setTimeout>;
+	// Watchdog: if no message arrives within 60s (server heartbeats every 20s),
+	// the TCP connection is silently dead (zombie NAT entry). Force a reconnect.
+	let watchdog: ReturnType<typeof setTimeout>;
+	const WATCHDOG_MS = 60_000;
+
+	function resetWatchdog() {
+		clearTimeout(watchdog);
+		watchdog = setTimeout(() => {
+			if (closed) return;
+			onConnect?.(false);
+			es.close();
+			connect();
+		}, WATCHDOG_MS);
+	}
 
 	function connect() {
 		if (closed) return;
-		
+
 		es = new EventSource(`${BASE}${path}`);
 
 		es.onopen = () => {
 			onConnect?.(true);
+			resetWatchdog();
 		};
 
 		es.onerror = () => {
 			onConnect?.(false);
+			clearTimeout(watchdog);
 			es.close();
 			if (!closed) {
 				clearTimeout(retryTimeout);
@@ -78,6 +94,9 @@ export function sse<T>(
 		function handleEvent(event: MessageEvent) {
 			try {
 				const data = JSON.parse(event.data);
+				resetWatchdog();
+				// Heartbeat messages keep the watchdog alive but carry no payload
+				if ((data as any).__type === 'heartbeat') return;
 				onMessage(data);
 			} catch {
 				// ignore
@@ -93,6 +112,7 @@ export function sse<T>(
 	return () => {
 		closed = true;
 		clearTimeout(retryTimeout);
+		clearTimeout(watchdog);
 		if (es) es.close();
 	};
 }

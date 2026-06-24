@@ -15,17 +15,23 @@
 
 	let customOverlays = $state<OverlayItem[]>([]);
 	let loadingCustom = $state(true);
+	let loadCustomError = $state<string | null>(null);
 	let creating = $state(false);
 	let newName = $state('');
 	let showCreateForm = $state(false);
 
 	async function loadCustom() {
 		loadingCustom = true;
+		loadCustomError = null;
 		try {
-			const res = await get<{ success: boolean; data: OverlayItem[] }>('/overlays');
-			if (res.success) customOverlays = res.data;
-		} catch {
-			// silently ignore — user may not be logged in on overlay page
+			const res = await get<{ success: boolean; data: OverlayItem[]; error?: string }>('/overlays');
+			if (res.success) {
+				customOverlays = res.data;
+			} else {
+				loadCustomError = res.error ?? 'Error al cargar los overlays';
+			}
+		} catch (e: any) {
+			loadCustomError = e.message ?? 'Error de conexión';
 		} finally {
 			loadingCustom = false;
 		}
@@ -114,6 +120,11 @@
 		{#if loadingCustom}
 			<div class="flex items-center gap-2 text-muted-foreground text-sm py-4">
 				<Loader2 class="w-4 h-4 animate-spin" /> Cargando overlays…
+			</div>
+		{:else if loadCustomError}
+			<div class="text-center py-12 border-2 border-dashed border-destructive/30 rounded-xl">
+				<p class="text-sm font-medium text-destructive">{loadCustomError}</p>
+				<Button variant="outline" size="sm" class="mt-3" onclick={loadCustom}>Reintentar</Button>
 			</div>
 		{:else if customOverlays.length === 0}
 			<div class="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">

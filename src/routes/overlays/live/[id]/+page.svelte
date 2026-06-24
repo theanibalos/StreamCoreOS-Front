@@ -36,12 +36,7 @@
 	let version        = $state(0);
 	let lastSync       = $state<string>('--:--');
 
-	// Per-stream connection state. The overlay is only "fully connected"
-	// when all three real-time channels are up.
-	let statsConnected = $state(false);
-	let chatConnected  = $state(false);
-	let alertsConnected = $state(false);
-	const connected = $derived(statsConnected && chatConnected && alertsConnected);
+	let connected = $state(false);
 
 	/**
 	 * Takes a new configuration and fresh live data, then applies them atomically.
@@ -139,72 +134,63 @@
 		chatMessages = slots;
 	}
 
-	// ── Real-time Connections ─────────────────────────────────────────────────
+	// ── Real-time Connection ─────────────────────────────────────────────────
 
-	function connectChat() {
-		return sse('/chat/stream', (msg: any) => {
-			for (const el of elements) {
-				if (el.type !== 'chat_highlight' && el.type !== 'custom_code') continue;
-				const filterUser = el.trigger?.filter_user;
-				if (filterUser && msg.display_name.toLowerCase() !== filterUser.toLowerCase()) continue;
-
-				chatMessages[el.id] = [
-					...(chatMessages[el.id] ?? []).slice(-5),
-					{ ...msg, timestamp: Date.now() }
-				];
-			}
-		}, (isConnected) => {
-			chatConnected = isConnected;
-		});
-	}
-
-	function connectAlerts() {
-		return sse('/dashboard/alerts', (msg: any) => {
-			for (const el of elements) {
-				if (el.type !== 'alert' || !el.trigger) continue;
-				if (msg.type !== el.trigger.event && !(el.trigger.event === 'channel.subscribe' && msg.type === 'channel.subscription.message')) continue;
-
-				const duration = el.style.duration_ms ?? 5000;
-				activeAlerts = [...activeAlerts, { elementId: el.id, vars: msg.data, expiresAt: Date.now() + duration }];
-				setTimeout(() => {
-					activeAlerts = activeAlerts.filter(a => a.expiresAt > Date.now());
-				}, duration + 500);
-			}
-		}, (isConnected) => {
-			alertsConnected = isConnected;
-		});
-	}
-
-	function connectStats() {
-		const id = overlayId;
-		return sse(`/overlays/stats?_=${Date.now()}`, (raw: any) => {
-			statsConnected = true;
-
-			// Case A: ATOMIC DESIGN + STATS PUSH
-			if (raw.__type === 'config_updated') {
-				if (String(raw.overlay_id) === String(id) && raw.config) {
-					console.log('[SCO] Design update received via SSE');
-					applyAtomicUpdate(raw.config, raw.stats);
+	function connectOverlay() {
+		return sse(`/overlays/stream/${overlayId}`, (raw: any) => {
+			switch (raw.type) {
+				case 'stats': {
+					const next: Record<string, string> = { ...statValues };
+					let changed = false;
+					for (const key in raw.data) {
+						if (String(raw.data[key]) !== next[key]) {
+							next[key] = String(raw.data[key]);
+							changed = true;
+						}
+					}
+					if (changed) {
+						statValues = next;
+						lastSync = new Date().toLocaleTimeString();
+					}
+					break;
 				}
-				return;
-			}
-
-			// Case B: STAT UPDATE (Subs, followers, bits, etc.)
-			const next: Record<string, string> = { ...statValues };
-			let changed = false;
-			for (const key in raw) {
-				if (key.startsWith('__')) continue; // Skip internal keys
-				if (String(raw[key]) !== next[key]) {
-					next[key] = String(raw[key]);
-					changed = true;
+				case 'chat': {
+					const msg = raw.data;
+					for (const el of elements) {
+						if (el.type !== 'chat_highlight' && el.type !== 'custom_code') continue;
+						const filterUser = el.trigger?.filter_user;
+						if (filterUser && msg.display_name?.toLowerCase() !== filterUser.toLowerCase()) continue;
+						chatMessages[el.id] = [
+							...(chatMessages[el.id] ?? []).slice(-5),
+							{ ...msg, timestamp: Date.now() }
+						];
+					}
+					break;
+				}
+				case 'alert': {
+					const { type: eventType, data: eventData } = raw.data;
+					for (const el of elements) {
+						if (el.type !== 'alert' || !el.trigger) continue;
+						if (eventType !== el.trigger.event && !(el.trigger.event === 'channel.subscribe' && eventType === 'channel.subscription.message')) continue;
+						const duration = el.style.duration_ms ?? 5000;
+						activeAlerts = [...activeAlerts, { elementId: el.id, vars: eventData, expiresAt: Date.now() + duration }];
+						setTimeout(() => {
+							activeAlerts = activeAlerts.filter(a => a.expiresAt > Date.now());
+						}, duration + 500);
+					}
+					break;
+				}
+				case 'config_updated': {
+					const { config, stats } = raw.data;
+					if (config) {
+						console.log('[SCO] Design update received via SSE');
+						applyAtomicUpdate(config, stats);
+					}
+					break;
 				}
 			}
-			if (changed) {
-				statValues = next;
-				lastSync = new Date().toLocaleTimeString();
-			}
 		}, (isConnected) => {
-			statsConnected = isConnected;
+			connected = isConnected;
 		});
 	}
 
@@ -214,17 +200,11 @@
 		console.log('[SCO] Live overlay mounted. ID:', overlayId);
 		refreshEverything();
 
-		const stops = [
-			isPreview ? () => {} : connectChat(),
-			isPreview ? () => {} : connectAlerts(),
-			isPreview ? () => {} : connectStats()
-		];
-
-		// Polling interval for OBS as safety net (every 60s instead of 10s to avoid database spam)
+		const stop = isPreview ? () => {} : connectOverlay();
 		const interval = setInterval(refreshEverything, 60000);
 
 		return () => {
-			stops.forEach(s => s());
+			stop();
 			clearInterval(interval);
 		};
 	});
@@ -269,9 +249,7 @@
 {/if}
 
 {#if loadError && !isPreview}
-	<div style="position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); color: #f87171; font-family: sans-serif; font-size: 14px; text-align: center; padding: 20px;">
-		{loadError}<br/>Intentando reconectar...
-	</div>
+	<div class="error-indicator">⚠ {loadError}</div>
 {/if}
 
 <style>
@@ -305,5 +283,19 @@
 	@keyframes pulse {
 		from { opacity: 0.3; }
 		to { opacity: 1; }
+	}
+
+	.error-indicator {
+		position: fixed;
+		top: 8px;
+		left: 8px;
+		font-family: monospace;
+		font-size: 9px;
+		color: rgba(248, 113, 113, 0.6);
+		letter-spacing: 0.5px;
+		pointer-events: none;
+		user-select: none;
+		z-index: 1000;
+		animation: pulse 1.5s infinite alternate;
 	}
 </style>
