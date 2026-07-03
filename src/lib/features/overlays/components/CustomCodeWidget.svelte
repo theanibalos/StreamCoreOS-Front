@@ -17,6 +17,7 @@
 		},
 		style: {},
 		hasTemplate: false,
+		needs: ['stats', 'chat', 'alerts'],
 		Editor: CustomCodeEditor
 	};
 </script>

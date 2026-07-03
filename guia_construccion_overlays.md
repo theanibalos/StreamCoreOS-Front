@@ -18,10 +18,13 @@ sequenceDiagram
     participant Custom Code Widget (Iframe)
 
     Twitch API->>StreamCoreOS Backend: Evento (Follow, Sub, Chat)
-    StreamCoreOS Backend->>StreamCoreOS Frontend: Envío por SSE (/chat/stream, /overlays/stats)
-    StreamCoreOS Frontend->>Custom Code Widget (Iframe): window.parent.postMessage({ type: 'update', payload })
+    StreamCoreOS Backend->>StreamCoreOS Frontend: SSE único multiplexado (/api/overlays/stream/{id})
+    StreamCoreOS Frontend->>Custom Code Widget (Iframe): postMessage({ type: 'update', payload })
     Note over Custom Code Widget (Iframe): Dispara Evento 'streamupdate' en JS
 ```
+
+> [!IMPORTANT]
+> Un widget `custom_code` recibe **automáticamente los tres canales** (stats, chat y alertas) por SSE en tiempo real. No necesitas agregar ningún otro elemento al lienzo para que tu código reciba datos.
 
 ---
 
@@ -72,18 +75,47 @@ Contiene los contadores del canal. Es ideal para marcadores y barras de progreso
 | `stream.viewer_count` | `String` | Espectadores actuales. | `stats['stream.viewer_count']` |
 | `bits.total` | `String` | Bits históricos acumulados. | `stats['bits.total']` |
 | `stream.online` | `Boolean / String` | Estado del stream (`true`/`false`). | `stats['stream.online'] === true` |
+| `followers.latest_name` | `String` | Nombre del último seguidor. | `stats['followers.latest_name']` |
+| `subscribers.latest_name` | `String` | Nombre del último suscriptor. | `stats['subscribers.latest_name']` |
+| `subscribers.latest_tier` | `String` | Tier de la última sub (`1000`/`2000`/`3000`). | `stats['subscribers.latest_tier']` |
+| `cheers.latest_name` | `String` | Último usuario que donó bits. | `stats['cheers.latest_name']` |
+| `cheers.latest_bits` | `String` | Cantidad de bits de la última donación. | `stats['cheers.latest_bits']` |
+| `raids.latest_name` | `String` | Canal del último raid recibido. | `stats['raids.latest_name']` |
+| `raids.latest_viewers` | `String` | Espectadores del último raid. | `stats['raids.latest_viewers']` |
 
 > [!NOTE]
-> La variable `stream.viewer_count` se actualiza cada 5 minutos debido a las limitaciones de rate-limit de la API de Twitch. Las demás estadísticas se actualizan instantáneamente en cuanto ocurre el evento.
+> La variable `stream.viewer_count` se actualiza cada 5 minutos debido a las limitaciones de rate-limit de la API de Twitch. Las demás estadísticas se actualizan instantáneamente en cuanto ocurre el evento. Las variables `*.latest_*` persisten en base de datos, por lo que sobreviven reinicios del backend y recargas del overlay.
+
+### A.2. Pool de Variables Dinámicas (Backend → Overlay)
+
+`data.stats` no es una lista cerrada: es un **pool abierto de variables**. Cualquier plugin del backend puede inyectar variables arbitrarias publicando un solo evento en el bus:
+
+```python
+# Desde cualquier plugin del backend (cualquier dominio):
+await self.bus.publish("overlay.vars.set", {
+    "meta.donaciones_hoy": 12,
+    "juego.actual": "Elden Ring",
+    "mi.variable.custom": "cualquier valor"
+})
+```
+
+Eso es todo. Automáticamente:
+1. Las variables se **persisten** en la tabla `overlay_vars` (sobreviven reinicios).
+2. Se **transmiten al instante** por SSE a todos los overlays conectados que consumen stats.
+3. Se **incluyen en el snapshot inicial** cuando un overlay se conecta o recarga.
+4. El overlay las lee sin ningún cambio en el frontend: `stats['juego.actual']`.
+
+Los valores pueden ser strings, números o booleanos (cualquier valor serializable a JSON). Usa nombres con formato `dominio.nombre_variable` para evitar colisiones con las claves integradas de la tabla anterior.
 
 ---
 
 ### B. Gestión de Alertas en Pantalla (`data.activeAlerts`)
-Es un array con las alertas que se están mostrando en el overlay en ese instante. Cada objeto de alerta tiene la siguiente estructura:
+Es un array con los eventos activos en ese instante. Los widgets `custom_code` reciben **todos** los eventos del stream (con una vida de 8 segundos cada uno), sin necesidad de configurar triggers. Cada objeto tiene la siguiente estructura:
 
 ```json
 {
-  "elementId": "alert-element-id",
+  "elementId": "__broadcast__",
+  "type": "channel.follow",
   "expiresAt": 1718589000000,
   "vars": {
     "user_name": "NombreDelUsuario",
@@ -96,12 +128,15 @@ Es un array con las alertas que se están mostrando en el overlay en ese instant
 }
 ```
 
+> [!IMPORTANT]
+> Filtra siempre por el campo `type` (el nombre exacto del evento, ver catálogo en la sección D). **Nunca** adivines el tipo de evento por la presencia o ausencia de campos en `vars` — es frágil y se rompe con eventos nuevos.
+
 #### Ejemplo de Filtro de Alertas en JavaScript:
 ```javascript
 function checkAlerts(alerts) {
-    const activeFollowAlert = alerts.find(a => a.vars && !a.vars.bits && !a.vars.viewers);
-    if (activeFollowAlert) {
-        document.getElementById('alert-box').innerText = `¡Gracias por el follow, ${activeFollowAlert.vars.user_name}!`;
+    const followAlert = alerts.find(a => a.type === 'channel.follow');
+    if (followAlert) {
+        document.getElementById('alert-box').innerText = `¡Gracias por el follow, ${followAlert.vars.user_name}!`;
         document.getElementById('alert-box').classList.add('visible');
     } else {
         document.getElementById('alert-box').classList.remove('visible');
@@ -193,7 +228,7 @@ Estos eventos se pueden capturar para ejecutar acciones automáticas en tu overl
     *   *Ejemplo*: `{"broadcaster_login": "mi_canal"}`
 *   **`stream.session.ended`** (Canal finaliza directo):
     *   No tiene variables específicas.
-*   **`loyalty.points.awarded`** (Puntos otorgados al chat):
+*   **`viewer.points.awarded`** (Puntos otorgados al chat):
     *   `display_name`: Espectador premiado.
     *   `amount`: Cantidad de puntos sumados.
     *   `reason`: Causa (ej: `"active_chat"`).
@@ -307,7 +342,7 @@ Puedes incluir cualquier framework o librería directamente en la pestaña **HTM
 window.addEventListener('streamupdate', (event) => {
     const alerts = event.detail.activeAlerts || [];
     // Si hay una alerta de follow activa, lanzar confeti
-    if (alerts.some(a => a.vars && a.vars.user_name)) {
+    if (alerts.some(a => a.type === 'channel.follow')) {
         confetti({
             particleCount: 100,
             spread: 70,

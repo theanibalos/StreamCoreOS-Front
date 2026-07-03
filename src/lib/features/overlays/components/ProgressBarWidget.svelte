@@ -15,6 +15,7 @@
 		},
 		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
 		hasTemplate: false,
+		needs: ['stats'],
 		fields: [
 			{ key: 'data_source', type: 'select', label: 'Fuente de datos', options: STAT_SOURCES },
 			{ key: 'config.target', type: 'number', label: 'Meta (Target)' },
@@ -34,6 +35,7 @@
 		statValues = {}
 	}: {
 		element: OverlayElement;
+		// Full pool indexed by SOURCE KEY (e.g. 'subscribers.active_total'), shared by all widgets.
 		statValues: Record<string, string>;
 	} = $props();
 
@@ -53,7 +55,9 @@
 	const glow        = $derived(element.style.glow ?? true);
 	const opacity     = $derived((element.style.opacity ?? 100) / 100);
 
-	const current = $derived(Math.max(0, (parseFloat(statValues[element.id] ?? '0') || 0) - baseline));
+	const current = $derived(
+		Math.max(0, (parseFloat((element.data_source ? statValues[element.data_source] : undefined) ?? '0') || 0) - baseline)
+	);
 	const percentage = $derived(Math.min(100, (current / target) * 100));
 	const completed  = $derived(percentage >= 100);
 

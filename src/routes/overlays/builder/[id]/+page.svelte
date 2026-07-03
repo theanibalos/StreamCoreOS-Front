@@ -4,13 +4,12 @@
 	import { get, put, post } from '$lib/core/api/client';
 	import { show } from '$lib/core/stores/toast.svelte';
 	
-	import { 
-		WIDGET_REGISTRY, 
-		PREVIEW_VARS, 
-		PREVIEW_STAT_VALUES,
-		createOverlayElement 
+	import {
+		createOverlayElement,
+		computeOverlayNeeds
 	} from '$lib/features/overlays';
-	import type { OverlayElement, ActiveAlert, ChatMessage } from '$lib/features/overlays';
+	import { createOverlayDataSource } from '$lib/features/overlays/dataSource.svelte';
+	import type { OverlayElement } from '$lib/features/overlays';
 
 	// Builder components
 	import BuilderHeader from '$lib/features/overlays/components/builder/BuilderHeader.svelte';
@@ -31,39 +30,12 @@
 	const liveUrl = $derived(`${page.url.origin}/overlays/live/${overlayId}`);
 	const selected = $derived(elements.find((e) => e.id === selectedId) ?? null);
 
-	// Preview state for the canvas
+	// Preview state for the canvas — real live stats (fetched once) preferred over canned samples.
 	let liveStatBySource = $state<Record<string, string>>({});
-	
-	const previewAlerts = $derived<ActiveAlert[]>(
-		elements
-			.filter((el) => el.type === 'alert' && el.trigger?.event)
-			.map((el) => {
-				const key = Object.keys(PREVIEW_VARS).find((k) => el.trigger!.event === k || el.trigger!.event.startsWith(k + '.')) ?? 'channel.subscribe';
-				return { elementId: el.id, vars: PREVIEW_VARS[key] ?? { user_name: 'Preview' }, expiresAt: 1 };
-			})
-	);
 
-	const previewStatValues = $derived<Record<string, string>>(
-		Object.fromEntries(
-			elements
-				.filter((el) => (el.type === 'stat' || el.type === 'progress_bar') && el.data_source)
-				.map((el) => [
-					el.id,
-					liveStatBySource[el.data_source!] ?? PREVIEW_STAT_VALUES[el.data_source!] ?? '42'
-				])
-		)
-	);
-
-	const previewChatMessages = $derived<Record<string, ChatMessage[]>>(
-		Object.fromEntries(
-			elements
-				.filter((el) => el.type === 'chat_highlight' || el.type === 'custom_code')
-				.map((el) => [el.id, [
-					{ display_name: 'StreamFan', message: '¡Qué buen stream!', timestamp: 1, color: '#FF4500', badges: {} as Record<string, string>, fragments: [{ type: 'text', text: '¡Qué buen stream!' }] },
-					{ display_name: 'ModUser',   message: 'Muy buen contenido!',  timestamp: 2, color: '#00C8AF', badges: { moderator: '1' }, fragments: [{ type: 'text', text: 'Muy buen contenido!' }] },
-				]])
-		)
-	);
+	const ds = createOverlayDataSource('preview', () => elements, {
+		getLiveOverrides: () => liveStatBySource
+	});
 
 	// ── Actions ───────────────────────────────────────────────────────────────
 	let saveTimeout: ReturnType<typeof setTimeout>;
@@ -91,13 +63,14 @@
 	async function save(notify = false) {
 		saving = true;
 		try {
-			const res = await put<{ success: boolean; error?: string }>(`/overlays/${overlayId}`, { 
-				name: overlayName, 
-				config: { 
-					elements, 
-					canvas_width: canvasWidth, 
-					canvas_height: canvasHeight 
-				} 
+			const res = await put<{ success: boolean; error?: string }>(`/overlays/${overlayId}`, {
+				name: overlayName,
+				config: {
+					elements,
+					canvas_width: canvasWidth,
+					canvas_height: canvasHeight,
+					needs: computeOverlayNeeds(elements)
+				}
 			});
 			
 			if (res.success) {
@@ -290,10 +263,9 @@
 					{elements}
 					bind:selectedId
 					bind:canvasRef={canvasAreaRef}
-					statValues={previewStatValues}
-					globalStats={{ ...PREVIEW_STAT_VALUES, ...liveStatBySource }}
-					activeAlerts={previewAlerts}
-					chatMessages={previewChatMessages}
+					statValues={ds.statValues}
+					activeAlerts={ds.activeAlerts}
+					chatMessages={ds.chatMessages}
 					{canvasWidth}
 					{canvasHeight}
 					onStartDrag={startDrag}

@@ -13,6 +13,7 @@
 		},
 		style: { accent: true, borderRadius: true, glow: true },
 		hasTemplate: false,
+		needs: [],
 		fields: [
 			{ key: 'config.fit', type: 'select', label: 'Ajuste', options: [
 				{ value: 'cover', label: 'Cubrir (recorta)' },

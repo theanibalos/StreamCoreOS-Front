@@ -68,6 +68,27 @@ export function createOverlayElement(type: string): any {
 	};
 }
 
+/**
+ * Derives the `needs` summary saved alongside an overlay's config so the
+ * backend can decide which SSE message types to send without inspecting
+ * element types itself (see overlay_stream_plugin.py _resolve_needs).
+ */
+export function computeOverlayNeeds(elements: { type: string }[]): {
+	stats: boolean;
+	chat: boolean;
+	alerts: boolean;
+} {
+	const needs = { stats: false, chat: false, alerts: false };
+	for (const el of elements) {
+		const widgetMeta = WIDGET_REGISTRY[el.type]?.meta;
+		if (!widgetMeta?.needs) continue;
+		if (widgetMeta.needs.includes('stats')) needs.stats = true;
+		if (widgetMeta.needs.includes('chat')) needs.chat = true;
+		if (widgetMeta.needs.includes('alerts')) needs.alerts = true;
+	}
+	return needs;
+}
+
 // Shared Preview Data
 export const PREVIEW_VARS: Record<string, Record<string, string>> = {
 	'channel.follow': { user_name: 'StreamFan123' },

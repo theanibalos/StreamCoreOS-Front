@@ -31,6 +31,8 @@ export type OverlayElement = {
 
 export type ActiveAlert = {
 	elementId: string;
+	/** Raw event type (e.g. 'channel.follow'). Present on live events; use it to filter instead of guessing by vars shape. */
+	type?: string;
 	vars: Record<string, string>;
 	expiresAt: number;
 };
@@ -114,4 +116,11 @@ export type WidgetMeta = {
 	fields?: EditorField[];
 	/** Optional bespoke editor component for custom UI (receives WidgetEditorProps). */
 	Editor?: Component<WidgetEditorProps>;
+	/**
+	 * Data feeds this widget needs from the overlay data source. Drives SSE
+	 * subscription filtering (backend), preview data generation and event
+	 * routing (dataSource.svelte.ts) — no more hardcoded `el.type === '...'`
+	 * checks scattered across the app.
+	 */
+	needs?: ('stats' | 'chat' | 'alerts')[];
 };

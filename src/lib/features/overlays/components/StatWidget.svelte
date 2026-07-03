@@ -15,6 +15,7 @@
 		},
 		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
 		hasTemplate: true,
+		needs: ['stats'],
 		templateVars: [{ name: 'value', label: 'Valor' }],
 		fields: [
 			{ key: 'data_source', type: 'select', label: 'Fuente de datos', options: STAT_SOURCES }
@@ -30,10 +31,11 @@
 		statValues = {}
 	}: {
 		element: OverlayElement;
+		// Full pool indexed by SOURCE KEY (e.g. 'subscribers.active_total'), shared by all widgets.
 		statValues: Record<string, string>;
 	} = $props();
 
-	const value   = $derived(statValues[element.id] ?? '…');
+	const value   = $derived(element.data_source ? (statValues[element.data_source] ?? '…') : '…');
 	const accent  = $derived(element.style.accent ?? '#9333ea');
 	const bg      = $derived(element.style.background ?? '#000000aa');
 	const radius  = $derived(element.style.border_radius ?? 12);

@@ -12,7 +12,8 @@
 			style: { background: '#000000cc', accent: '#9333ea', border_radius: 10, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 24, text_color: '#ffffff', opacity: 100 }
 		},
 		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
-		hasTemplate: true
+		hasTemplate: true,
+		needs: []
 	};
 </script>
 

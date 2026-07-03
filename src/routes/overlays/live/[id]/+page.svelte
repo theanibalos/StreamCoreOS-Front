@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { onMount, flushSync } from 'svelte';
-	import { get, sse } from '$lib/core/api/client';
-	import { 
-		WIDGET_REGISTRY, 
-		PREVIEW_VARS, 
-		PREVIEW_STAT_VALUES 
-	} from '$lib/features/overlays';
-	import type { OverlayElement, ActiveAlert, ChatMessage } from '$lib/features/overlays';
+	import { onMount, flushSync, untrack } from 'svelte';
+	import { get } from '$lib/core/api/client';
+	import { WIDGET_REGISTRY } from '$lib/features/overlays';
+	import { createOverlayDataSource } from '$lib/features/overlays/dataSource.svelte';
+	import type { OverlayElement } from '$lib/features/overlays';
 
 
 	const overlayId = $derived(page.params.id);
@@ -15,15 +12,7 @@
 
 	// ── State ─────────────────────────────────────────────────────────────────
 	let elements       = $state<OverlayElement[]>([]);
-	let activeAlerts   = $state<ActiveAlert[]>([]);
-	let chatMessages   = $state<Record<string, ChatMessage[]>>({});
-	
-	/**
-	 * statValues stores data by SOURCE KEY (e.g., 'subscribers.active_total')
-	 * NOT by element.id. This ensures all widgets sharing a source update together.
-	 */
-	let statValues     = $state<Record<string, string>>({});
-	
+
 	let loaded         = $state(false);
 	let loadError      = $state<string | null>(null);
 	let canvasWidth    = $state(1920);
@@ -36,7 +25,21 @@
 	let version        = $state(0);
 	let lastSync       = $state<string>('--:--');
 
-	let connected = $state(false);
+	// Stats (by SOURCE KEY), chat and alerts all flow through one shared
+	// module so the SSE switch / preview generation logic isn't duplicated
+	// between this page and the builder canvas. Mode and overlayId are fixed
+	// for the lifetime of this page instance — read once intentionally.
+	const ds = createOverlayDataSource(
+		untrack(() => isPreview) ? 'preview' : 'live',
+		() => elements,
+		{
+			overlayId: untrack(() => overlayId),
+			onConfigUpdated: (config, stats) => {
+				console.log('[SCO] Design update received via SSE');
+				applyAtomicUpdate(config, stats);
+			}
+		}
+	);
 
 	/**
 	 * Takes a new configuration and fresh live data, then applies them atomically.
@@ -45,17 +48,8 @@
 	 */
 	function applyAtomicUpdate(config: any, liveData?: Record<string, any>) {
 		if (!config) return;
-		
+
 		const nextElements = config.elements ?? [];
-		const nextStats: Record<string, string> = { ...statValues };
-
-		if (liveData) {
-			console.log('[SCO] Mapping fresh stats:', liveData);
-			for (const k in liveData) {
-				nextStats[k] = String(liveData[k]);
-			}
-		}
-
 		const newConfigStr = JSON.stringify(config);
 		const configChanged = newConfigStr !== currentConfigStr;
 
@@ -68,19 +62,22 @@
 				backgroundType  = config.background_type  ?? null;
 				currentConfigStr = newConfigStr;
 				version++;
-				initChatSlots();
+				ds.syncChatSlots();
 			}
-			
-			statValues      = nextStats;
+
+			if (liveData) {
+				console.log('[SCO] Mapping fresh stats:', liveData);
+				ds.mergeServerStats(liveData);
+			}
 			loaded = true;
 			lastSync = new Date().toLocaleTimeString();
 		});
-		
-		console.log('[SCO] Atomic update applied. Changed:', configChanged, 'Elements:', elements.length, 'Stats cached:', Object.keys(statValues).length);
+
+		console.log('[SCO] Atomic update applied. Changed:', configChanged, 'Elements:', elements.length);
 	}
 
 	// ── Data Fetching ────────────────────────────────────────────────────────
-	
+
 	async function refreshEverything() {
 		if (!overlayId) return;
 		try {
@@ -89,7 +86,6 @@
 			if (res.success) {
 				loadError = null;
 				applyAtomicUpdate(res.data.config, res.data.stats);
-				if (isPreview) applyPreviewData();
 			} else {
 				loadError = res.error ?? 'Error al cargar';
 			}
@@ -100,107 +96,13 @@
 		loaded = true;
 	}
 
-	function applyPreviewData() {
-		const next: Record<string, string> = { ...statValues };
-		// In preview, we populate common source keys with sample data
-		for (const key in PREVIEW_STAT_VALUES) {
-			next[key] = PREVIEW_STAT_VALUES[key];
-		}
-		statValues = next;
-		
-		const now = Date.now();
-		activeAlerts = elements
-			.filter((el) => el.type === 'alert' && el.trigger?.event)
-			.map((el) => ({
-				elementId: el.id,
-				vars: PREVIEW_VARS[Object.keys(PREVIEW_VARS).find(k => el.trigger!.event.startsWith(k)) || 'channel.subscribe'],
-				expiresAt: now + 999999
-			}));
-			
-		for (const el of elements) {
-			if (el.type === 'chat_highlight') {
-				chatMessages[el.id] = [
-					{ display_name: 'Preview', message: 'Esto es una prueba del chat', timestamp: now, color: '#9147ff', fragments: [{ type: 'text', text: 'Esto es una prueba del chat' }] }
-				];
-			}
-		}
-	}
-
-	function initChatSlots() {
-		const slots: Record<string, ChatMessage[]> = { ...chatMessages };
-		for (const el of elements) {
-			if ((el.type === 'chat_highlight' || el.type === 'custom_code') && !slots[el.id]) slots[el.id] = [];
-		}
-		chatMessages = slots;
-	}
-
-	// ── Real-time Connection ─────────────────────────────────────────────────
-
-	function connectOverlay() {
-		return sse(`/overlays/stream/${overlayId}`, (raw: any) => {
-			switch (raw.type) {
-				case 'stats': {
-					const next: Record<string, string> = { ...statValues };
-					let changed = false;
-					for (const key in raw.data) {
-						if (String(raw.data[key]) !== next[key]) {
-							next[key] = String(raw.data[key]);
-							changed = true;
-						}
-					}
-					if (changed) {
-						statValues = next;
-						lastSync = new Date().toLocaleTimeString();
-					}
-					break;
-				}
-				case 'chat': {
-					const msg = raw.data;
-					for (const el of elements) {
-						if (el.type !== 'chat_highlight' && el.type !== 'custom_code') continue;
-						const filterUser = el.trigger?.filter_user;
-						if (filterUser && msg.display_name?.toLowerCase() !== filterUser.toLowerCase()) continue;
-						chatMessages[el.id] = [
-							...(chatMessages[el.id] ?? []).slice(-5),
-							{ ...msg, timestamp: Date.now() }
-						];
-					}
-					break;
-				}
-				case 'alert': {
-					const { type: eventType, data: eventData } = raw.data;
-					for (const el of elements) {
-						if (el.type !== 'alert' || !el.trigger) continue;
-						if (eventType !== el.trigger.event && !(el.trigger.event === 'channel.subscribe' && eventType === 'channel.subscription.message')) continue;
-						const duration = el.style.duration_ms ?? 5000;
-						activeAlerts = [...activeAlerts, { elementId: el.id, vars: eventData, expiresAt: Date.now() + duration }];
-						setTimeout(() => {
-							activeAlerts = activeAlerts.filter(a => a.expiresAt > Date.now());
-						}, duration + 500);
-					}
-					break;
-				}
-				case 'config_updated': {
-					const { config, stats } = raw.data;
-					if (config) {
-						console.log('[SCO] Design update received via SSE');
-						applyAtomicUpdate(config, stats);
-					}
-					break;
-				}
-			}
-		}, (isConnected) => {
-			connected = isConnected;
-		});
-	}
-
 	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
 		console.log('[SCO] Live overlay mounted. ID:', overlayId);
 		refreshEverything();
 
-		const stop = isPreview ? () => {} : connectOverlay();
+		const stop = ds.start();
 		const interval = setInterval(refreshEverything, 60000);
 
 		return () => {
@@ -228,11 +130,11 @@
 				{@const Widget = WIDGET_REGISTRY[el.type]?.component}
 				{#if Widget}
 					<div style={wrapperStyle(el, i)}>
-						<Widget 
-							element={el} 
-							statValues={el.type === 'custom_code' ? statValues : (el.data_source ? { [el.id]: statValues[el.data_source] ?? '0' } : {})}
-							{activeAlerts} 
-							{chatMessages} 
+						<Widget
+							element={el}
+							statValues={ds.statValues}
+							activeAlerts={ds.activeAlerts}
+							chatMessages={ds.chatMessages}
 						/>
 					</div>
 				{/if}
@@ -241,8 +143,8 @@
 
 		<!-- Micro Diagnostic Info for OBS -->
 		{#if !isPreview}
-			<div class="diagnostic-info" class:offline={!connected}>
-				{connected ? '● LIVE' : '○ CONNECTING'} | {lastSync} | v{version}
+			<div class="diagnostic-info" class:offline={!ds.connected}>
+				{ds.connected ? '● LIVE' : '○ CONNECTING'} | {lastSync} | v{version}
 			</div>
 		{/if}
 	</div>

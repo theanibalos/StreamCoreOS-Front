@@ -14,6 +14,7 @@
 		},
 		style: { background: true, accent: true, textColor: true, borderRadius: true, fontSize: true, glow: true },
 		hasTemplate: true,
+		needs: ['alerts'],
 		templateVars: (el) => ALERT_EVENT_VARS[el.trigger?.event ?? ''] ?? [],
 		fields: [
 			{ key: 'trigger.event', type: 'select', label: 'Evento', options: ALERT_EVENTS },

@@ -13,7 +13,8 @@
 			style: { background: 'rgba(24, 24, 27, 0.82)', accent: '#9333ea', border_radius: 14, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 15, text_color: '#ffffff', opacity: 100 }
 		},
 		style: { background: true, accent: true, borderRadius: true, fontSize: true, glow: true },
-		hasTemplate: false
+		hasTemplate: false,
+		needs: ['chat']
 	};
 </script>
 
