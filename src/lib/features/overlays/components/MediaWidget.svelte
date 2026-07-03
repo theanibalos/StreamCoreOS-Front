@@ -25,27 +25,16 @@
 
 <script lang="ts">
 	import type { OverlayElement } from '../types';
-	import { onMount } from 'svelte';
-	import { page } from '$app/state';
 
 	let { element }: { element: OverlayElement } = $props();
 
-	const rawUrl  = $derived((element.config?.url as string) ?? '');
-	// Direct to port 8000 to avoid proxy issues in OBS
-	const url     = $derived(rawUrl.startsWith('/api') 
-		? `${page.url.protocol}//${page.url.hostname}:8000${rawUrl}` 
-		: rawUrl);
-
+	const url     = $derived((element.config?.url as string) ?? '');
 	const isVideo = $derived(url.match(/\.(mp4|webm|mov)$/i));
 	const radius  = $derived(element.style.border_radius ?? 0);
 	const opacity = $derived((element.style.opacity ?? 100) / 100);
 	const glow    = $derived(element.style.glow ?? false);
 	const accent  = $derived(element.style.accent ?? '#9147ff');
 	const fit     = $derived(element.config?.fit ?? 'cover');
-
-	onMount(() => {
-		if (url) console.log('[MediaWidget] Loading Direct Backend URL:', url);
-	});
 </script>
 
 <div
