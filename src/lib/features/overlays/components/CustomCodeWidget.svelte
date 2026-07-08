@@ -54,6 +54,7 @@
 		<html>
 		<head>
 			<meta charset="utf-8">
+			<base href="${typeof window !== 'undefined' ? window.location.origin : ''}/">
 			<style>
 				html, body {
 					margin: 0;
