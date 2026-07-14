@@ -66,19 +66,7 @@
 		if (!fullConfig) return;
 		saving = true; error = null;
 		try {
-			const {
-				provider, endpoint_url, model, timeout_s,
-				disable_reasoning, extra_headers, extra_payload
-			} = fullConfig;
-
 			const body = {
-				provider,
-				endpoint_url,
-				model,
-				timeout_s,
-				disable_reasoning,
-				extra_headers,
-				extra_payload,
 				chat_system_prompt: system_prompt.trim() || DEFAULT_PROMPT,
 				chat_max_tokens: max_tokens,
 				chat_temperature: temperature,
