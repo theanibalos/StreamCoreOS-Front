@@ -20,6 +20,10 @@
 		timeout_s: number;
 		extra_headers: Record<string, string>;
 		extra_payload: Record<string, unknown>;
+		chat_system_prompt: string;
+		chat_max_tokens: number;
+		chat_temperature: number;
+		chat_cooldown_s: number;
 		updated_at: string | null;
 	}
 
@@ -57,6 +61,14 @@
 	let extra_payload_err = $state<string | null>(null);
 	let extra_headers_err = $state<string | null>(null);
 
+	// Campos del chatbot (!ia) que no se editan en esta pestaña, pero deben
+	// reenviarse tal cual en el PUT — si se omiten, el backend los resetea
+	// a sus valores por defecto porque /ai/config guarda la fila completa.
+	let chat_system_prompt = $state('');
+	let chat_max_tokens = $state(200);
+	let chat_temperature = $state(0.7);
+	let chat_cooldown_s = $state(120);
+
 	let modelPlaceholder = $derived(PRESETS[provider]?.model_placeholder ?? 'model-name');
 	let isConfigured = $derived(Boolean(endpoint_url.trim() && model.trim()));
 	let isLocalProvider = $derived(['ollama', 'lmstudio', 'llamacpp'].includes(provider));
@@ -83,6 +95,10 @@
 				timeout_s = res.data.timeout_s ?? 120;
 				extra_payload_raw = JSON.stringify(res.data.extra_payload ?? {}, null, 2);
 				extra_headers_raw = JSON.stringify(res.data.extra_headers ?? {}, null, 2);
+				chat_system_prompt = res.data.chat_system_prompt ?? '';
+				chat_max_tokens = res.data.chat_max_tokens ?? 200;
+				chat_temperature = res.data.chat_temperature ?? 0.7;
+				chat_cooldown_s = res.data.chat_cooldown_s ?? 120;
 			}
 		} catch (e) { error = e instanceof Error ? e.message : String(e); } finally { loading = false; }
 	}
@@ -101,10 +117,14 @@
 				provider, 
 				endpoint_url: endpoint_url.trim(), 
 				model: model.trim(),
-				disable_reasoning, 
-				timeout_s, 
-				extra_payload: pRes.parsed ?? {}, 
-				extra_headers: hRes.parsed ?? {}
+				disable_reasoning,
+				timeout_s,
+				extra_payload: pRes.parsed ?? {},
+				extra_headers: hRes.parsed ?? {},
+				chat_system_prompt,
+				chat_max_tokens,
+				chat_temperature,
+				chat_cooldown_s
 			};
 			
 			if (api_key) body.api_key = api_key;
