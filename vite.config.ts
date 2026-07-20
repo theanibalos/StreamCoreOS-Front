@@ -7,7 +7,10 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/api': {
-				target: 'http://localhost:8000',
+				// http://localhost:8000 works when running `pnpm dev` on the host.
+				// Inside docker compose, override with VITE_API_PROXY_TARGET=http://backend:8000
+				// ("localhost" inside the frontend container is the container itself, not the backend).
+				target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
 				changeOrigin: true,
 			}
 		}
