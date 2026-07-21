@@ -145,9 +145,7 @@ export interface RegularEntry {
 }
 
 export interface AddRegularRequest {
-	twitch_id: string;
 	login: string;
-	display_name: string;
 }
 
 export interface AdjustPointsRequest {
@@ -194,6 +192,7 @@ export interface ModRuleData {
 	action: string; // ban | timeout | delete
 	duration_s: number | null;
 	enabled: boolean;
+	exempt_roles: string[]; // mod | vip | sub | regular
 }
 
 export interface CreateModRuleRequest {
@@ -201,6 +200,7 @@ export interface CreateModRuleRequest {
 	value?: string | null;
 	action?: string;
 	duration_s?: number | null;
+	exempt_roles?: string[];
 }
 
 export interface UpdateModRuleRequest {
@@ -208,6 +208,7 @@ export interface UpdateModRuleRequest {
 	action?: string | null;
 	duration_s?: number | null;
 	enabled?: boolean | null;
+	exempt_roles?: string[] | null;
 }
 
 export interface ModLogEntry {

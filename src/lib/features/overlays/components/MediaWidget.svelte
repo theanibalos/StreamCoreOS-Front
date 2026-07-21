@@ -56,7 +56,6 @@
 			src={url}
 			autoplay
 			loop
-			muted
 			playsinline
 			class="media-content"
 			style="object-fit: {fit}; width: 100%; height: 100%;"

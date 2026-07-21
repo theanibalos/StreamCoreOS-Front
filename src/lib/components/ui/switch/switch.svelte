@@ -1,31 +1,50 @@
 <script lang="ts">
-	import { Switch as SwitchPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn } from "$lib/utils.js";
+	import type { HTMLButtonAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
 		class: className,
 		checked = $bindable(false),
 		size = "default",
+		onCheckedChange,
+		disabled = false,
 		...restProps
-	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> & {
+	}: Omit<HTMLButtonAttributes, "onclick" | "type" | "role"> & {
+		ref?: HTMLButtonElement | null;
+		checked?: boolean;
 		size?: "sm" | "default";
+		onCheckedChange?: (checked: boolean) => void;
 	} = $props();
+
+	function toggle() {
+		if (disabled) return;
+		checked = !checked;
+		onCheckedChange?.(checked);
+	}
 </script>
 
-<SwitchPrimitive.Root
-	bind:ref
-	bind:checked
+<button
+	bind:this={ref}
+	type="button"
+	role="switch"
+	aria-checked={checked}
 	data-slot="switch"
-	data-size={size}
+	{disabled}
+	onclick={toggle}
 	class={cn(
-		"data-checked:bg-primary data-unchecked:bg-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 dark:data-unchecked:bg-input/80 shrink-0 rounded-full border border-transparent focus-visible:ring-3 aria-invalid:ring-3 data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+		"relative inline-flex shrink-0 rounded-full shadow-inner transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+		size === "sm" ? "h-4 w-8" : "h-5 w-10",
+		checked ? "bg-emerald-500" : "bg-muted-foreground/30",
 		className
 	)}
 	{...restProps}
 >
-	<SwitchPrimitive.Thumb
-		data-slot="switch-thumb"
-		class="bg-background dark:data-unchecked:bg-foreground dark:data-checked:bg-primary-foreground rounded-full group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0 pointer-events-none block ring-0 transition-transform rtl:data-[state=checked]:translate-x-[calc(-100%)]"
-	/>
-</SwitchPrimitive.Root>
+	<span
+		class={cn(
+			"absolute top-1 left-1 rounded-full bg-white shadow-sm transition-transform pointer-events-none",
+			size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3",
+			checked && (size === "sm" ? "translate-x-4" : "translate-x-5")
+		)}
+	></span>
+</button>

@@ -56,29 +56,84 @@
 			colorClass: 'bg-slate-500 hover:bg-slate-600 text-white',
 			summary: () => 'Stream ended'
 		},
-		'loyalty.points.awarded': {
-			label: 'Points',
-			colorClass: 'bg-cyan-400 hover:bg-cyan-500 text-black',
-			summary: (d) => `${d.display_name} +${d.amount} pts (${d.reason})`
+		'channel.subscription.end': {
+			label: 'Unsub',
+			colorClass: 'bg-slate-400 hover:bg-slate-500 text-white',
+			summary: (d) => `${d.user_name ?? d.user_login} unsubscribed`
 		},
-		'loyalty.reward.redeemed': {
+		'channel.channel_points_custom_reward_redemption.add': {
 			label: 'Redeem',
 			colorClass: 'bg-rose-400 hover:bg-rose-500 text-white',
-			summary: (d) => `${d.display_name} redeemed "${d.reward_name}" (${d.cost} pts)`
+			summary: (d) => {
+				const reward = (d.reward ?? {}) as Record<string, unknown>;
+				return `${d.user_name ?? d.user_login} redeemed "${reward.title ?? '?'}" (${reward.cost ?? '?'} pts)`;
+			}
+		},
+		'viewer.regular.added': {
+			label: 'Regular',
+			colorClass: 'bg-emerald-400 hover:bg-emerald-500 text-black',
+			summary: (d) => `${d.display_name} is now a regular`
+		},
+		'viewer.regular.removed': {
+			label: 'Regular',
+			colorClass: 'bg-slate-400 hover:bg-slate-500 text-white',
+			summary: (d) => `${d.display_name} is no longer a regular`
 		},
 		'moderation.action.taken': {
 			label: 'Mod',
 			colorClass: 'bg-red-500 hover:bg-red-600 text-white',
 			summary: (d) => `${d.display_name} → ${d.action} (${d.reason})`
+		},
+		'channel.bits.use': {
+			label: 'Bits',
+			colorClass: 'bg-yellow-400 hover:bg-yellow-500 text-black',
+			summary: (d) => `${d.user_name ?? d.user_login ?? 'Anonymous'} used ${d.bits ?? '?'} bits`
+		},
+		'channel.chat.notification': {
+			label: 'Chat',
+			colorClass: 'bg-blue-400 hover:bg-blue-500 text-white',
+			summary: (d) => `${d.chatter_user_name ?? d.chatter_user_login ?? 'Someone'} — ${d.notice_type ?? 'notification'}`
+		},
+		'channel.chat.message': {
+			label: 'Chat',
+			colorClass: 'bg-blue-400 hover:bg-blue-500 text-white',
+			summary: (d) => {
+				const message = (d.message ?? {}) as Record<string, unknown>;
+				return `${d.chatter_user_name ?? d.chatter_user_login ?? 'Someone'}: ${message.text ?? ''}`;
+			}
 		}
 	};
+
+	// Not really "alert" moments — ticks in the background, no pill worth showing.
+	const HIDDEN_TYPES = new Set(['dashboard.stats.updated']);
+
+	// Best-effort readable summary for event types not in ALERT_MAP yet.
+	// Never falls back to raw JSON — picks the first recognizable field, or
+	// a generic message if the payload has nothing we know how to display.
+	function fallbackSummary(d: Record<string, unknown>): string {
+		const candidateFields = [
+			'display_name', 'user_name', 'user_login',
+			'chatter_user_name', 'chatter_user_login',
+			'broadcaster_user_name', 'from_broadcaster_user_name', 'title'
+		];
+		for (const field of candidateFields) {
+			const v = d[field];
+			if (typeof v === 'string' && v) return v;
+		}
+		return 'Nuevo evento recibido';
+	}
+
+	function prettifyLabel(type: string): string {
+		const last = type.split('.').pop() ?? type;
+		return last.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+	}
 
 	function getMeta(type: string): AlertMeta {
 		return (
 			ALERT_MAP[type] ?? {
-				label: type.split('.').pop() ?? type,
+				label: prettifyLabel(type),
 				colorClass: 'bg-secondary text-secondary-foreground',
-				summary: (d) => JSON.stringify(d).slice(0, 80)
+				summary: fallbackSummary
 			}
 		);
 	}
@@ -110,13 +165,14 @@
 		</div>
 	</CardHeader>
 	<CardContent class="flex-1 overflow-hidden p-0">
-		{#if alerts.messages.length === 0}
+		{@const visibleMessages = alerts.messages.filter((m) => !HIDDEN_TYPES.has(m.type))}
+		{#if visibleMessages.length === 0}
 			<div class="h-full flex items-center justify-center text-sm text-muted-foreground">
 				Waiting for events...
 			</div>
 		{:else}
 			<div class="h-full overflow-y-auto px-6 pb-6 space-y-3">
-				{#each alerts.messages as msg (msg.timestamp + msg.type)}
+				{#each visibleMessages as msg (msg.timestamp + msg.type)}
 					{@const meta = getMeta(msg.type)}
 					<div class="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card text-card-foreground shadow-sm">
 						<div class="flex items-center gap-3 overflow-hidden">

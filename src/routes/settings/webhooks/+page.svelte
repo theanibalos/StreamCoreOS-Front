@@ -5,6 +5,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { 
 		Webhook, 
@@ -318,7 +321,7 @@
 									{/each}
 								</div>
 							</div>
-							<textarea bind:value={form.body_template} class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono" placeholder={'{}'}></textarea>
+							<Textarea bind:value={form.body_template} class="text-xs font-mono" placeholder={'{}'} />
 						</div>
 					{/if}
 				</div>
@@ -354,7 +357,7 @@
 						<div class="flex items-start justify-between">
 							<div class="flex flex-col gap-1">
 								<div class="flex items-center gap-2">
-									<span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary">{wh.trigger_type}</span>
+									<Badge variant="outline" class="h-auto rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border-none bg-primary/10 text-primary">{wh.trigger_type}</Badge>
 									<span class="text-[9px] font-mono text-muted-foreground truncate max-w-[100px]">{wh.trigger_value}</span>
 								</div>
 								<CardTitle class="text-lg leading-none mt-1">{wh.name}</CardTitle>
@@ -363,13 +366,11 @@
 								<span class="text-[10px] font-bold uppercase tracking-wider {wh.enabled ? 'text-emerald-500' : 'text-muted-foreground/50'}">
 									{wh.enabled ? 'Activo' : 'Pausado'}
 								</span>
-								<button 
-									onclick={() => toggleWebhook(wh)} 
-									class="w-10 h-5 rounded-full relative transition-all shadow-inner {wh.enabled ? 'bg-emerald-500' : 'bg-muted-foreground/30'}"
+								<Switch
+									checked={wh.enabled}
+									onCheckedChange={() => toggleWebhook(wh)}
 									title={wh.enabled ? 'Pausar automatización' : 'Activar automatización'}
-								>
-									<div class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform shadow-sm {wh.enabled ? 'translate-x-5' : ''}"></div>
-								</button>
+								/>
 							</div>
 						</div>
 					</CardHeader>

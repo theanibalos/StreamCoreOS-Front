@@ -4,6 +4,7 @@
 	import type { ListRemindersResponse, ReminderData } from '$lib/types/api';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { RefreshCw, Clock } from '@lucide/svelte';
 
 	let reminders = $state<ReminderData[]>([]);
@@ -60,9 +61,9 @@
 						<p class="text-sm italic flex-1">"{r.message}"</p>
 						<div class="flex justify-between items-center text-xs">
 							<span class="font-semibold text-primary">por {r.scheduled_by}</span>
-							<span class="font-bold text-blue-500 bg-blue-500/10 dark:text-blue-400 px-2 py-0.5 rounded-md flex items-center gap-1" title={new Date(r.run_at).toLocaleString()}>
+							<Badge variant="outline" class="border-none rounded-md font-bold text-blue-500 bg-blue-500/10 dark:text-blue-400" title={new Date(r.run_at).toLocaleString()}>
 								<Clock class="h-3 w-3" /> {formatRunAt(r.run_at)}
-							</span>
+							</Badge>
 						</div>
 					</div>
 				{/each}

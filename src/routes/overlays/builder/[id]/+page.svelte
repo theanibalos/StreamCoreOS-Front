@@ -3,7 +3,9 @@
 	import { onMount } from 'svelte';
 	import { get, put, post } from '$lib/core/api/client';
 	import { show } from '$lib/core/stores/toast.svelte';
-	
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+
 	import {
 		createOverlayElement,
 		computeOverlayNeeds
@@ -289,28 +291,20 @@
 	</div>
 </div>
 
-{#if showUrlModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-		onclick={() => (showUrlModal = false)}
-	>
-		<div
-			class="bg-card border rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 flex flex-col gap-3"
-			onclick={(e) => e.stopPropagation()}
-		>
-			<p class="text-sm font-semibold">URL para OBS</p>
-			<p class="text-xs text-muted-foreground">Copia esta URL manualmente (Ctrl+C / Cmd+C):</p>
-			<input
-				class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
-				readonly
-				value={liveUrl}
-				use:onUrlInputMount
-			/>
-			<button
-				class="self-end text-xs text-muted-foreground hover:text-foreground underline"
-				onclick={() => (showUrlModal = false)}
-			>Cerrar</button>
-		</div>
-	</div>
-{/if}
+<Dialog.Root bind:open={showUrlModal}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>URL para OBS</Dialog.Title>
+			<Dialog.Description>Copia esta URL manualmente (Ctrl+C / Cmd+C):</Dialog.Description>
+		</Dialog.Header>
+		<input
+			class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
+			readonly
+			value={liveUrl}
+			use:onUrlInputMount
+		/>
+		<Dialog.Footer>
+			<Button variant="ghost" onclick={() => (showUrlModal = false)}>Cerrar</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

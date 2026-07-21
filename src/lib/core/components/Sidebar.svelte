@@ -1,22 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { FEATURES } from '../features.config';
-	import { Button } from '$lib/components/ui/button';
-	import { Sun, Moon, Link, Link2Off } from '@lucide/svelte';
-	import { toggleMode } from 'mode-watcher';
+	import { Link, Link2Off } from '@lucide/svelte';
 	import { logout, auth } from '$lib/core/stores/auth.svelte';
+	import logoIcon from '$lib/assets/favicon.svg';
 
 	let { class: className = '' }: { class?: string } = $props();
 </script>
 
 <nav class="flex flex-col border-r bg-card/50 px-3 py-4 {className}">
-	<div class="mb-6 px-4 flex items-center justify-between">
+	<div class="mb-6 px-4 flex items-center gap-2">
+		<img src={logoIcon} alt="" class="h-7 w-7" />
 		<h2 class="text-xl font-bold tracking-tight text-primary">StreamCoreOS</h2>
-		<Button variant="ghost" size="icon" onclick={toggleMode} class="h-8 w-8">
-			<Sun class="h-[1.1rem] w-[1.1rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-			<Moon class="absolute h-[1.1rem] w-[1.1rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-			<span class="sr-only">Toggle theme</span>
-		</Button>
 	</div>
 
 	<div class="px-4 mb-6">

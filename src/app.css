@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/*
+  Tailwind v4 defaults `dark:` to @media (prefers-color-scheme: dark), which
+  ignores the `.dark` class mode-watcher toggles on <html>. Without this,
+  every `dark:` utility in the app tracks the OS theme instead of the
+  in-app toggle (that's why the toggle button's own label/icons never
+  updated — text was always mixed up with 'sistema').
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));

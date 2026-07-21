@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get, post, del } from '$lib/core/api/client';
-	import type { 
-		ListRegularsResponse, 
-		RegularEntry, 
-		AddRegularResponse, 
-		RegularData,
+	import type {
+		ListRegularsResponse,
+		RegularEntry,
+		AddRegularResponse,
 		RemoveRegularResponse
 	} from '$lib/types/api';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
@@ -18,9 +17,7 @@
 	let error = $state<string | null>(null);
 
 	// Add form
-	let twitchId = $state('');
 	let login = $state('');
-	let displayName = $state('');
 	let adding = $state(false);
 
 	async function load() {
@@ -37,19 +34,14 @@
 	}
 
 	async function addRegular() {
-		if (!twitchId || !login || !displayName) return;
+		if (!login.trim()) return;
 		adding = true;
+		error = null;
 		try {
-			const res = await post<AddRegularResponse>('/viewers/regulars', {
-				twitch_id: twitchId,
-				login,
-				display_name: displayName
-			});
+			const res = await post<AddRegularResponse>('/viewers/regulars', { login: login.trim() });
 			if (res.success && res.data) {
-				await load(); 
-				twitchId = '';
+				await load();
 				login = '';
-				displayName = '';
 			} else {
 				error = res.error ?? 'Failed to add regular';
 			}
@@ -92,10 +84,8 @@
 				<UserPlus class="w-3 h-3" /> Añadir Nuevo Regular
 			</span>
 			<div class="flex flex-col sm:flex-row gap-2">
-				<Input placeholder="Twitch ID" bind:value={twitchId} class="flex-1 text-xs" />
-				<Input placeholder="Login" bind:value={login} class="flex-1 text-xs" />
-				<Input placeholder="Nombre" bind:value={displayName} class="flex-1 text-xs" />
-				<Button onclick={addRegular} disabled={adding || !twitchId} size="sm" class="sm:w-12">
+				<Input placeholder="Nombre de usuario de Twitch" bind:value={login} class="flex-1 text-xs" onkeydown={(e) => e.key === 'Enter' && addRegular()} />
+				<Button onclick={addRegular} disabled={adding || !login.trim()} size="sm" class="sm:w-12">
 					{adding ? '...' : '+'}
 				</Button>
 			</div>

@@ -346,7 +346,7 @@
 							<CardHeader class="pb-3">
 								<div class="flex items-start justify-between gap-2">
 									<div class="flex flex-col gap-1">
-										<span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary w-fit">{PRESETS[p.provider]?.label ?? p.provider}</span>
+										<Badge variant="outline" class="h-auto w-fit rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border-none bg-primary/10 text-primary">{PRESETS[p.provider]?.label ?? p.provider}</Badge>
 										<CardTitle class="text-base leading-tight mt-1">{p.name}</CardTitle>
 										<span class="text-[10px] font-mono text-muted-foreground truncate max-w-[220px]">{p.endpoint_url}</span>
 									</div>

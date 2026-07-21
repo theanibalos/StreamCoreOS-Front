@@ -8,6 +8,12 @@
 		UpdateTimerResponse,
 		DeleteTimerResponse
 	} from '$lib/types/api';
+	import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Switch } from '$lib/components/ui/switch';
+	import * as Table from '$lib/components/ui/table';
+	import { RefreshCw, Pencil, Trash2, Check, X, Timer } from '@lucide/svelte';
 
 	// ── State ────────────────────────────────────────────────────────────────
 	let timers = $state<TimerData[]>([]);
@@ -157,399 +163,138 @@
 	}
 </script>
 
-<div class="manager">
-	<!-- Header -->
-	<div class="panel-header">
-		<h2>Timers</h2>
-		<div class="actions">
-			<button class="refresh" onclick={load} disabled={loading}>↺</button>
-			<button class="add-btn" onclick={() => (showForm = !showForm)}>
-				{showForm ? '✕ Cancel' : '+ New'}
-			</button>
-		</div>
-	</div>
-
-	{#if error}
-		<p class="err">{error}</p>
-	{/if}
-
-	<!-- New timer form -->
-	{#if showForm}
-		<div class="form-box">
-			<h3>New Timer</h3>
-			{#if formError}
-				<p class="err">{formError}</p>
-			{/if}
-			<div class="form-row">
-				<label>
-					Name
-					<input type="text" placeholder="My timer" bind:value={newName} />
-				</label>
-				<label class="wide">
-					Message
-					<input type="text" placeholder="Chat message…" bind:value={newMessage} />
-				</label>
-				<label>
-					Interval (min)
-					<input type="number" min="1" bind:value={newInterval} />
-				</label>
-				<label>
-					Min lines
-					<input type="number" min="0" bind:value={newMinLines} />
-				</label>
+<div class="flex flex-col gap-6">
+	<Card>
+		<CardHeader class="flex flex-row items-center justify-between border-b pb-4">
+			<div>
+				<CardTitle class="text-lg font-bold uppercase tracking-tight flex items-center gap-2">
+					<Timer class="w-5 h-5 text-primary" /> Timers
+				</CardTitle>
+				<CardDescription>Automated messages sent to chat on a recurring interval.</CardDescription>
 			</div>
-			<button class="save-btn" onclick={create} disabled={creating}>
-				{creating ? 'Creating…' : 'Create'}
-			</button>
-		</div>
-	{/if}
+			<div class="flex gap-2">
+				<Button variant="outline" size="icon" onclick={load} disabled={loading}>
+					<RefreshCw class="w-4 h-4 {loading ? 'animate-spin' : ''}" />
+				</Button>
+				<Button onclick={() => (showForm = !showForm)} variant={showForm ? 'secondary' : 'default'}>
+					{showForm ? 'Cancel' : '+ New'}
+				</Button>
+			</div>
+		</CardHeader>
 
-	<!-- Timer list -->
-	{#if loading}
-		<p class="muted">Loading…</p>
-	{:else if timers.length === 0}
-		<p class="muted">No timers yet. Create one above.</p>
-	{:else}
-		<table>
-			<thead>
-				<tr>
-					<th>Name</th>
-					<th>Message</th>
-					<th class="center">Interval</th>
-					<th class="center">Min lines</th>
-					<th class="center">Last run</th>
-					<th class="center">Enabled</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each timers as timer (timer.id)}
-					{#if editingId === timer.id}
-						<tr class="editing">
-							<td>
-								<input class="cell-input" type="text" bind:value={editName} />
-							</td>
-							<td>
-								<input class="cell-input wide" type="text" bind:value={editMessage} />
-							</td>
-							<td class="center">
-								<input class="cell-input narrow" type="number" min="1" bind:value={editInterval} />
-							</td>
-							<td class="center">
-								<input class="cell-input narrow" type="number" min="0" bind:value={editMinLines} />
-							</td>
-							<td class="center muted">{formatLast(timer.last_executed_at)}</td>
-							<td class="center">
-								<button
-									class="toggle"
-									class:on={timer.enabled === 1}
-									onclick={() => toggleEnabled(timer)}
-								>
-									{timer.enabled === 1 ? 'On' : 'Off'}
-								</button>
-							</td>
-							<td class="row-actions">
-								<button class="save-btn small" onclick={() => saveEdit(timer.id)} disabled={saving}>
-									{saving ? '…' : '✓'}
-								</button>
-								<button class="ghost small" onclick={cancelEdit}>✕</button>
-							</td>
-						</tr>
+		{#if error}
+			<p class="text-xs text-destructive font-medium bg-destructive/10 p-2 rounded mx-6 mt-4">{error}</p>
+		{/if}
+
+		{#if showForm}
+			<CardContent class="bg-muted/30 border-b p-6 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200">
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div class="flex flex-col gap-2">
+						<label for="new-timer-name" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Name</label>
+						<Input id="new-timer-name" bind:value={newName} placeholder="My timer" />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="new-timer-message" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Message</label>
+						<Input id="new-timer-message" bind:value={newMessage} placeholder="Chat message…" />
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="flex flex-col gap-2">
+						<label for="new-timer-interval" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Interval (min)</label>
+						<Input id="new-timer-interval" type="number" min="1" bind:value={newInterval} />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="new-timer-minlines" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Min lines</label>
+						<Input id="new-timer-minlines" type="number" min="0" bind:value={newMinLines} />
+					</div>
+				</div>
+
+				{#if formError}
+					<p class="text-xs text-destructive font-medium bg-destructive/10 p-2 rounded">{formError}</p>
+				{/if}
+
+				<Button onclick={create} disabled={creating} class="w-full sm:w-auto self-end">
+					{creating ? 'Creating…' : 'Create'}
+				</Button>
+			</CardContent>
+		{/if}
+
+		<CardContent class="p-0">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row class="hover:bg-transparent">
+						<Table.Head>Name</Table.Head>
+						<Table.Head>Message</Table.Head>
+						<Table.Head class="text-center">Interval</Table.Head>
+						<Table.Head class="text-center">Min lines</Table.Head>
+						<Table.Head class="text-center">Last run</Table.Head>
+						<Table.Head class="text-center">Enabled</Table.Head>
+						<Table.Head class="text-right">Actions</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#if loading && timers.length === 0}
+						<Table.Row><Table.Cell colspan={7} class="text-center py-10 text-muted-foreground italic">Loading…</Table.Cell></Table.Row>
+					{:else if timers.length === 0}
+						<Table.Row><Table.Cell colspan={7} class="text-center py-10 text-muted-foreground italic">No timers yet. Create one above.</Table.Cell></Table.Row>
 					{:else}
-						<tr class:disabled={timer.enabled === 0}>
-							<td class="name">{timer.name}</td>
-							<td class="msg">{timer.message}</td>
-							<td class="center muted">{timer.interval_minutes}m</td>
-							<td class="center muted">{timer.min_lines}</td>
-							<td class="center muted">{formatLast(timer.last_executed_at)}</td>
-							<td class="center">
-								<button
-									class="toggle"
-									class:on={timer.enabled === 1}
-									onclick={() => toggleEnabled(timer)}
-								>
-									{timer.enabled === 1 ? 'On' : 'Off'}
-								</button>
-							</td>
-							<td class="row-actions">
-								<button class="ghost small" onclick={() => startEdit(timer)}>✎</button>
-								<button class="danger small" onclick={() => remove(timer.id)}>🗑</button>
-							</td>
-						</tr>
+						{#each timers as timer (timer.id)}
+							{#if editingId === timer.id}
+								<Table.Row class="bg-muted/50">
+									<Table.Cell>
+										<Input bind:value={editName} />
+									</Table.Cell>
+									<Table.Cell>
+										<Input bind:value={editMessage} />
+									</Table.Cell>
+									<Table.Cell class="text-center">
+										<Input type="number" min="1" bind:value={editInterval} class="w-20 mx-auto text-center" />
+									</Table.Cell>
+									<Table.Cell class="text-center">
+										<Input type="number" min="0" bind:value={editMinLines} class="w-20 mx-auto text-center" />
+									</Table.Cell>
+									<Table.Cell class="text-center text-muted-foreground">{formatLast(timer.last_executed_at)}</Table.Cell>
+									<Table.Cell class="text-center">
+										<Switch checked={timer.enabled === 1} onCheckedChange={() => toggleEnabled(timer)} />
+									</Table.Cell>
+									<Table.Cell class="text-right">
+										<div class="flex justify-end gap-1">
+											<Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => saveEdit(timer.id)} disabled={saving}>
+												<Check class="w-3.5 h-3.5" />
+											</Button>
+											<Button variant="ghost" size="icon" class="h-8 w-8" onclick={cancelEdit}>
+												<X class="w-3.5 h-3.5" />
+											</Button>
+										</div>
+									</Table.Cell>
+								</Table.Row>
+							{:else}
+								<Table.Row class={timer.enabled === 0 ? 'opacity-60 bg-muted/20' : ''}>
+									<Table.Cell class="font-medium text-primary">{timer.name}</Table.Cell>
+									<Table.Cell class="max-w-[300px] truncate text-muted-foreground">{timer.message}</Table.Cell>
+									<Table.Cell class="text-center text-muted-foreground">{timer.interval_minutes}m</Table.Cell>
+									<Table.Cell class="text-center text-muted-foreground">{timer.min_lines}</Table.Cell>
+									<Table.Cell class="text-center text-muted-foreground">{formatLast(timer.last_executed_at)}</Table.Cell>
+									<Table.Cell class="text-center">
+										<Switch checked={timer.enabled === 1} onCheckedChange={() => toggleEnabled(timer)} />
+									</Table.Cell>
+									<Table.Cell class="text-right">
+										<div class="flex justify-end gap-1">
+											<Button variant="ghost" size="icon" class="h-8 w-8" onclick={() => startEdit(timer)}>
+												<Pencil class="w-3.5 h-3.5" />
+											</Button>
+											<Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" onclick={() => remove(timer.id)}>
+												<Trash2 class="w-3.5 h-3.5" />
+											</Button>
+										</div>
+									</Table.Cell>
+								</Table.Row>
+							{/if}
+						{/each}
 					{/if}
-				{/each}
-			</tbody>
-		</table>
-	{/if}
+				</Table.Body>
+			</Table.Root>
+		</CardContent>
+	</Card>
 </div>
-
-<style>
-	.manager {
-		background: var(--surface, #1e1e2e);
-		border: 1px solid var(--border, #313244);
-		border-radius: 8px;
-		padding: 1rem 1.25rem;
-	}
-
-	.panel-header {
-		display: flex;
-		align-items: center;
-		margin-bottom: 1rem;
-	}
-
-	h2 {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--text, #cdd6f4);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		flex: 1;
-	}
-
-	.actions {
-		display: flex;
-		gap: 0.4rem;
-	}
-
-	.refresh {
-		background: none;
-		border: 1px solid var(--border, #313244);
-		color: var(--subtext, #a6adc8);
-		border-radius: 4px;
-		padding: 0.2rem 0.5rem;
-		cursor: pointer;
-		font-size: 0.9rem;
-	}
-
-	.refresh:hover:not(:disabled) {
-		color: var(--text, #cdd6f4);
-	}
-
-	.add-btn {
-		background: var(--accent, #cba6f7);
-		color: #11111b;
-		border: none;
-		border-radius: 4px;
-		padding: 0.25rem 0.75rem;
-		font-size: 0.8rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.form-box {
-		background: var(--surface2, #181825);
-		border: 1px solid var(--border, #313244);
-		border-radius: 6px;
-		padding: 0.75rem 1rem;
-		margin-bottom: 1rem;
-	}
-
-	h3 {
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: var(--subtext, #a6adc8);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		margin-bottom: 0.6rem;
-	}
-
-	.form-row {
-		display: flex;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-		margin-bottom: 0.6rem;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.72rem;
-		color: var(--subtext, #a6adc8);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	label.wide {
-		flex: 1;
-		min-width: 200px;
-	}
-
-	input[type='text'],
-	input[type='number'] {
-		background: var(--surface, #1e1e2e);
-		border: 1px solid var(--border, #313244);
-		border-radius: 4px;
-		color: var(--text, #cdd6f4);
-		padding: 0.35rem 0.55rem;
-		font-size: 0.875rem;
-		outline: none;
-		width: 100%;
-	}
-
-	input:focus {
-		border-color: var(--accent, #cba6f7);
-	}
-
-	input[type='number'] {
-		width: 6rem;
-	}
-
-	.save-btn {
-		background: var(--accent, #cba6f7);
-		color: #11111b;
-		border: none;
-		border-radius: 4px;
-		padding: 0.35rem 0.9rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.save-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.save-btn.small {
-		padding: 0.2rem 0.5rem;
-		font-size: 0.8rem;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.85rem;
-	}
-
-	th {
-		text-align: left;
-		color: var(--subtext, #a6adc8);
-		font-size: 0.7rem;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		padding: 0 0 0.5rem;
-		border-bottom: 1px solid var(--border, #313244);
-	}
-
-	th.center,
-	td.center {
-		text-align: center;
-	}
-
-	td {
-		padding: 0.5rem 0;
-		border-bottom: 1px solid var(--border, #313244);
-		color: var(--text, #cdd6f4);
-		vertical-align: middle;
-	}
-
-	tr:last-child td {
-		border-bottom: none;
-	}
-
-	tr.disabled td {
-		opacity: 0.45;
-	}
-
-	tr.editing {
-		background: rgba(203, 166, 247, 0.04);
-	}
-
-	.name {
-		font-weight: 500;
-		color: var(--accent, #cba6f7);
-	}
-
-	.msg {
-		color: var(--subtext, #a6adc8);
-		max-width: 300px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.cell-input {
-		background: var(--surface2, #181825);
-		border: 1px solid var(--accent, #cba6f7);
-		border-radius: 3px;
-		color: var(--text, #cdd6f4);
-		padding: 0.2rem 0.4rem;
-		font-size: 0.825rem;
-		outline: none;
-	}
-
-	.cell-input.wide {
-		width: 100%;
-	}
-
-	.cell-input.narrow {
-		width: 4.5rem;
-	}
-
-	.row-actions {
-		display: flex;
-		gap: 0.3rem;
-		justify-content: flex-end;
-	}
-
-	.toggle {
-		font-size: 0.7rem;
-		font-weight: 700;
-		padding: 0.1rem 0.45rem;
-		border-radius: 999px;
-		background: #45475a;
-		color: #cdd6f4;
-		border: none;
-		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-
-	.toggle.on {
-		background: var(--green, #a6e3a1);
-		color: #11111b;
-	}
-
-	.ghost {
-		background: none;
-		border: 1px solid var(--border, #313244);
-		color: var(--subtext, #a6adc8);
-		border-radius: 4px;
-		cursor: pointer;
-	}
-
-	.ghost:hover {
-		border-color: var(--subtext, #a6adc8);
-		color: var(--text, #cdd6f4);
-	}
-
-	.danger {
-		background: none;
-		border: 1px solid transparent;
-		color: var(--subtext, #a6adc8);
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 0.8rem;
-	}
-
-	.danger:hover {
-		color: var(--red, #f38ba8);
-		border-color: var(--red, #f38ba8);
-	}
-
-	button.small {
-		padding: 0.2rem 0.45rem;
-		font-size: 0.8rem;
-	}
-
-	.muted {
-		color: var(--subtext, #a6adc8);
-		font-size: 0.875rem;
-	}
-
-	.err {
-		color: var(--red, #f38ba8);
-		font-size: 0.875rem;
-		margin-bottom: 0.5rem;
-	}
-</style>

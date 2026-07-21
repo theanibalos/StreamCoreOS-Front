@@ -2,11 +2,13 @@
 	import { TtsVoiceAssignments, TtsSettings } from '$lib/features/tts';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { Copy } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { show } from '$lib/core/stores/toast.svelte';
 
 	let urlModalText = $state('');
+	let urlModalOpen = $state(false);
 
 	async function copyUrl() {
 		const fullUrl = `${page.url.origin}/overlays/tts`;
@@ -18,6 +20,7 @@
 			} catch {}
 		}
 		urlModalText = fullUrl;
+		urlModalOpen = true;
 	}
 
 	function onUrlInputMount(node: HTMLInputElement) {
@@ -56,28 +59,20 @@
 	</Tabs>
 </div>
 
-{#if urlModalText}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-		onclick={() => (urlModalText = '')}
-	>
-		<div
-			class="bg-card border rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 flex flex-col gap-3"
-			onclick={(e) => e.stopPropagation()}
-		>
-			<p class="text-sm font-semibold">URL para OBS</p>
-			<p class="text-xs text-muted-foreground">Copia esta URL manualmente (Ctrl+C / Cmd+C):</p>
-			<input
-				class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
-				readonly
-				value={urlModalText}
-				use:onUrlInputMount
-			/>
-			<button
-				class="self-end text-xs text-muted-foreground hover:text-foreground underline"
-				onclick={() => (urlModalText = '')}
-			>Cerrar</button>
-		</div>
-	</div>
-{/if}
+<Dialog.Root bind:open={urlModalOpen}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>URL para OBS</Dialog.Title>
+			<Dialog.Description>Copia esta URL manualmente (Ctrl+C / Cmd+C):</Dialog.Description>
+		</Dialog.Header>
+		<input
+			class="w-full rounded-md border bg-muted px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary/40 select-all"
+			readonly
+			value={urlModalText}
+			use:onUrlInputMount
+		/>
+		<Dialog.Footer>
+			<Button variant="ghost" onclick={() => (urlModalOpen = false)}>Cerrar</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>

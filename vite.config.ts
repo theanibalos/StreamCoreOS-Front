@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
+                port: 8500,
 		proxy: {
 			'/api': {
 				// http://localhost:8000 works when running `pnpm dev` on the host.

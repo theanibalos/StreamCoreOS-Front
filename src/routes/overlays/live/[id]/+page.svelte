@@ -17,8 +17,6 @@
 	let loadError      = $state<string | null>(null);
 	let canvasWidth    = $state(1920);
 	let canvasHeight   = $state(1080);
-	let backgroundImage = $state<string | null>(null);
-	let backgroundType  = $state<'image' | 'video' | null>(null);
 	let currentConfigStr = '';
 
 	// Diagnostic state for OBS
@@ -58,8 +56,6 @@
 				elements        = nextElements;
 				canvasWidth     = config.canvas_width    ?? 1920;
 				canvasHeight    = config.canvas_height   ?? 1080;
-				backgroundImage = config.background_image ?? null;
-				backgroundType  = config.background_type  ?? null;
 				currentConfigStr = newConfigStr;
 				version++;
 				ds.syncChatSlots();
@@ -125,21 +121,19 @@
 
 {#if loaded}
 	<div class="canvas" style="--overlay-scale: 1;">
-		{#key version}
-			{#each elements as el, i (el.id)}
-				{@const Widget = WIDGET_REGISTRY[el.type]?.component}
-				{#if Widget}
-					<div style={wrapperStyle(el, i)}>
-						<Widget
-							element={el}
-							statValues={ds.statValues}
-							activeAlerts={ds.activeAlerts}
-							chatMessages={ds.chatMessages}
-						/>
-					</div>
-				{/if}
-			{/each}
-		{/key}
+		{#each elements as el, i (el.id)}
+			{@const Widget = WIDGET_REGISTRY[el.type]?.component}
+			{#if Widget}
+				<div style={wrapperStyle(el, i)}>
+					<Widget
+						element={el}
+						statValues={ds.statValues}
+						activeAlerts={ds.activeAlerts}
+						chatMessages={ds.chatMessages}
+					/>
+				</div>
+			{/if}
+		{/each}
 
 		<!-- Micro Diagnostic Info for OBS -->
 		{#if !isPreview}

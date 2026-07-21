@@ -2,6 +2,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Switch } from '$lib/components/ui/switch';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { Slider } from '$lib/components/ui/slider';
 	import { tick } from 'svelte';
 	import { Layers, Trash2, Copy, ImageIcon, ChevronUp, ChevronDown, Maximize, Minimize } from '@lucide/svelte';
 	import { WIDGET_REGISTRY } from '../../index';
@@ -128,9 +132,9 @@
 				<!-- Header info -->
 				<div class="pb-4 border-b">
 					<div class="flex items-center gap-2 mb-1">
-						<span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+						<Badge variant="outline" class="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-transparent">
 							{ELEMENT_LABELS[selected.type]}
-						</span>
+						</Badge>
 						<span class="text-[10px] text-muted-foreground font-mono">{selected.id}</span>
 					</div>
 				</div>
@@ -195,13 +199,7 @@
 						{@const on = (getField(field) ?? field.default) === true}
 						<div class="flex items-center justify-between">
 							<p class="text-xs font-medium text-muted-foreground">{field.label}</p>
-							<button
-								type="button"
-								class="text-[10px] px-2.5 py-1 rounded border font-bold transition-colors {on ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'}"
-								onclick={() => writeField(field.key, !on)}
-							>
-								{on ? 'ACTIVO' : 'DESACTIVADO'}
-							</button>
+							<Switch checked={on} onCheckedChange={(v) => writeField(field.key, v)} />
 						</div>
 					{:else}
 						<div>
@@ -217,12 +215,12 @@
 									{/each}
 								</select>
 							{:else if field.type === 'textarea'}
-								<textarea
-									class="w-full min-h-[80px] p-2.5 rounded-md border bg-background text-xs font-mono focus:ring-1 focus:ring-primary outline-none resize-y"
+								<Textarea
+									class="min-h-[80px] text-xs font-mono resize-y"
 									value={getField(field) ?? ''}
-									oninput={(e) => setField(field, (e.target as HTMLTextAreaElement).value)}
+									oninput={(e: Event) => setField(field, (e.target as HTMLTextAreaElement).value)}
 									placeholder={field.placeholder}
-								></textarea>
+								/>
 							{:else}
 								<Input
 									type={field.type === 'number' ? 'number' : 'text'}
@@ -353,12 +351,7 @@
 						{#if caps.glow}
 							<div class="flex items-center justify-between">
 								<Label class="text-[10px] text-muted-foreground">Glow</Label>
-								<button
-									class="text-[10px] px-2.5 py-1 rounded border font-bold transition-colors {selected.style.glow ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'}"
-									onclick={() => updateStyle({ glow: !selected.style.glow })}
-								>
-									{selected.style.glow ? 'ACTIVO' : 'DESACTIVADO'}
-								</button>
+								<Switch checked={!!selected.style.glow} onCheckedChange={(v) => updateStyle({ glow: v })} />
 							</div>
 						{/if}
 
@@ -368,14 +361,12 @@
 								<Label class="text-[10px] text-muted-foreground">Opacidad</Label>
 								<span class="text-[10px] font-mono text-muted-foreground">{selected.style.opacity ?? 100}%</span>
 							</div>
-							<input
-								type="range"
-								min="0"
-								max="100"
-								step="1"
-								class="w-full h-1 appearance-none rounded-full bg-muted cursor-pointer accent-primary"
-								value={selected.style.opacity ?? 100}
-								oninput={(e) => updateStyle({ opacity: parseInt((e.target as HTMLInputElement).value) })}
+							<Slider
+								value={[selected.style.opacity ?? 100]}
+								min={0}
+								max={100}
+								step={1}
+								onValueChange={(v) => updateStyle({ opacity: v[0] })}
 							/>
 						</div>
 					</div>

@@ -2,6 +2,7 @@
 	import { ModerationRules } from '$lib/features/moderation';
 	import { ModLog } from '$lib/features/moderation';
 	import { ManualActions } from '$lib/features/dashboard';
+	import { RegularsManager } from '$lib/features/viewers';
 </script>
 
 <div class="flex flex-col gap-8 w-full max-w-[1600px] mx-auto">
@@ -12,7 +13,7 @@
 
 	<div class="flex flex-col gap-8">
 		<ModerationRules />
-		
+
 		<div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
 			<div class="xl:col-span-2">
 				<ManualActions />
@@ -21,5 +22,7 @@
 				<ModLog />
 			</div>
 		</div>
+
+		<RegularsManager />
 	</div>
 </div>
