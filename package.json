@@ -19,6 +19,7 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@tailwindcss/vite": "^4.2.4",
 		"@types/d3": "^7.4.3",
+		"@types/node": "^26.1.1",
 		"bits-ui": "^2.18.0",
 		"svelte": "^5.55.1",
 		"svelte-check": "^4.4.6",

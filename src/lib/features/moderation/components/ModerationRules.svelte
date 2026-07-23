@@ -312,10 +312,10 @@
 				</div>
 
 				<div class="flex flex-col gap-2 pt-2 border-t">
-					<label class="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-2">
+					<span id="mod-dialog-exempt-label" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-2">
 						Excluir de este filtro
-					</label>
-					<div class="flex flex-wrap gap-2">
+					</span>
+					<div class="flex flex-wrap gap-2" role="group" aria-labelledby="mod-dialog-exempt-label">
 						{#each EXEMPT_ROLES as r}
 							<Badge
 								variant="outline"
