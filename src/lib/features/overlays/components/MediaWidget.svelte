@@ -62,18 +62,13 @@
 			onerror={() => console.error('[MediaWidget] Video load error:', url)}
 		></video>
 	{:else}
-		<div 
-			class="media-content" 
-			style="
-				background-image: url('{url}'); 
-				background-size: {fit}; 
-				background-position: center; 
-				background-repeat: no-repeat;
-				width: 100%;
-				height: 100%;
-			"
-			aria-label="Overlay Media"
-		></div>
+		<img
+			src={url}
+			alt="Overlay Media"
+			class="media-content"
+			style="object-fit: {fit}; width: 100%; height: 100%;"
+			onerror={() => console.error('[MediaWidget] Image load error:', url)}
+		/>
 	{/if}
 </div>
 
