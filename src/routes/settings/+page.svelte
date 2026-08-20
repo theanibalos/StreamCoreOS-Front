@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { TwitchPermissions } from '$lib/features/auth';
+	import { OverlayFeedToken } from '$lib/features/overlays';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
 	import { toggleMode } from 'mode-watcher';
 	import { Sun, Moon, Palette } from '@lucide/svelte';
@@ -31,6 +32,8 @@
 			</button>
 		</CardContent>
 	</Card>
+
+	<OverlayFeedToken />
 
 	<TwitchPermissions />
 </div>

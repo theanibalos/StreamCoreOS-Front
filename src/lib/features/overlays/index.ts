@@ -35,6 +35,9 @@ export {
 	CustomCodeWidget
 };
 
+// Settings surface: manage the channel overlay-feed token (link for OBS).
+export { default as OverlayFeedToken } from './components/OverlayFeedToken.svelte';
+
 // Default configurations for new elements — derived from each widget's meta.
 export const DEFAULT_ELEMENT_CONFIGS: Record<string, any> = Object.fromEntries(
 	Object.entries(WIDGET_REGISTRY).map(([type, { meta }]) => [type, meta.defaults])

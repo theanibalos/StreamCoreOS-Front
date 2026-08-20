@@ -3,6 +3,7 @@
 	import { get, post, put, del } from '$lib/core/api/client';
 	import type {
 		CommandData,
+		CommandAction,
 		ListCommandsResponse,
 		CreateCommandResponse,
 		UpdateCommandResponse,
@@ -17,7 +18,18 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Table from '$lib/components/ui/table';
-	import { RefreshCw, Pencil, Trash2, Variable, Hash } from '@lucide/svelte';
+	import { RefreshCw, Pencil, Trash2, Variable, Hash, Megaphone } from '@lucide/svelte';
+
+	type CommandType = 'text' | CommandAction;
+
+	const commandTypes: { value: CommandType; label: string; hint: string }[] = [
+		{ value: 'text', label: 'Texto', hint: 'Responde en el chat con el texto que definas.' },
+		{
+			value: 'shoutout',
+			label: 'Shoutout',
+			hint: 'Hace un shoutout real de Twitch al primer usuario mencionado (ej: !so otrocanal).'
+		}
+	];
 
 	let commands = $state<CommandData[]>([]);
 	let chatVars = $state<ChatVarData[]>([]);
@@ -33,6 +45,7 @@
 
 	let showForm = $state(false);
 	let newName = $state('');
+	let newType = $state<CommandType>('text');
 	let newResponse = $state('');
 	let newCooldown = $state(0);
 	let newGlobalCooldown = $state(0);
@@ -96,11 +109,12 @@
 		creating = true;
 		try {
 			const res = await post<CreateCommandResponse>('/chat/commands', {
-				name, response, cooldown_s: newCooldown, global_cooldown_s: newGlobalCooldown, userlevel: newUserLevel
+				name, response, cooldown_s: newCooldown, global_cooldown_s: newGlobalCooldown, userlevel: newUserLevel,
+				action: newType === 'text' ? null : newType
 			});
 			if (res.success && res.data) {
 				commands = [...commands, res.data];
-				newName = ''; newResponse = ''; newCooldown = 0; newGlobalCooldown = 0; newUserLevel = 'everyone';
+				newName = ''; newType = 'text'; newResponse = ''; newCooldown = 0; newGlobalCooldown = 0; newUserLevel = 'everyone';
 				showForm = false;
 			} else {
 				formError = res.error ?? 'Error al crear el comando.';
@@ -179,10 +193,18 @@
 
 		{#if showForm}
 			<CardContent class="bg-muted/30 border-b p-6 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200">
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div class="flex flex-col gap-2">
 						<label for="new-cmd-name" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nombre</label>
-						<Input id="new-cmd-name" bind:value={newName} placeholder="!hola" class="font-mono" />
+						<Input id="new-cmd-name" bind:value={newName} placeholder="!so" class="font-mono" />
+					</div>
+					<div class="flex flex-col gap-2">
+						<label for="new-cmd-type" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tipo</label>
+						<select id="new-cmd-type" bind:value={newType} class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+							{#each commandTypes as t}
+								<option value={t.value}>{t.label}</option>
+							{/each}
+						</select>
 					</div>
 					<div class="flex flex-col gap-2">
 						<label for="new-userlevel" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nivel de Usuario</label>
@@ -194,9 +216,17 @@
 					</div>
 				</div>
 
+				<p class="text-xs text-muted-foreground -mt-2">
+					{commandTypes.find((t) => t.value === newType)?.hint}
+				</p>
+
 				<div class="flex flex-col gap-2">
 					<label for="new-resp-input" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Respuesta</label>
-					<Input id="new-resp-input" bind:value={newResponse} placeholder={"Hola {user}!"} />
+					<Input
+						id="new-resp-input"
+						bind:value={newResponse}
+						placeholder={newType === 'shoutout' ? '¡Vayan a ver a {touser}! 🎉' : 'Hola {user}!'}
+					/>
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
@@ -290,7 +320,14 @@
 								</Table.Row>
 							{:else}
 								<Table.Row class={!cmd.enabled ? "opacity-60 bg-muted/20" : ""}>
-									<Table.Cell class="font-mono font-bold text-primary">{cmd.name}</Table.Cell>
+									<Table.Cell class="font-mono font-bold text-primary">
+										<div class="flex items-center gap-1.5">
+											{cmd.name}
+											{#if cmd.action === 'shoutout'}
+												<Megaphone class="w-3.5 h-3.5 text-blue-500" />
+											{/if}
+										</div>
+									</Table.Cell>
 									<Table.Cell class="max-w-[200px] truncate">{cmd.response}</Table.Cell>
 									<Table.Cell>
 										<Badge variant="secondary" class="text-[10px] uppercase font-bold tracking-tighter">{cmd.userlevel}</Badge>

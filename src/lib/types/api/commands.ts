@@ -2,6 +2,8 @@ import type { ApiResponse } from './common';
 
 export type UserLevel = 'everyone' | 'subscriber' | 'vip' | 'regular' | 'moderator' | 'broadcaster';
 
+export type CommandAction = 'shoutout';
+
 export interface CommandData {
 	id: number;
 	name: string;
@@ -11,6 +13,7 @@ export interface CommandData {
 	userlevel: UserLevel;
 	global_cooldown_s: number;
 	use_count: number;
+	action: CommandAction | null;
 }
 
 export interface CreateCommandRequest {
@@ -19,6 +22,7 @@ export interface CreateCommandRequest {
 	cooldown_s?: number; // 0–3600
 	userlevel?: UserLevel;
 	global_cooldown_s?: number;
+	action?: CommandAction | null; // built-in behavior to run before the response, e.g. "shoutout"
 }
 
 export interface UpdateCommandRequest {
