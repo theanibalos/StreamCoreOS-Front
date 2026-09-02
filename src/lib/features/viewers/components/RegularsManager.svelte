@@ -10,6 +10,7 @@
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '$lib/components/ui/badge';
 	import { RefreshCw, UserPlus, Trash2, Users } from '@lucide/svelte';
 
 	let regulars = $state<RegularEntry[]>([]);
@@ -55,9 +56,9 @@
 	async function removeRegular(id: string) {
 		if (!confirm('¿Eliminar de la lista de regulars?')) return;
 		try {
-			const res = await del<RemoveRegularResponse>(`/viewers/regulars/${id}`);
+			const res = await del<RemoveRegularResponse>(`/viewers/regulars/${encodeURIComponent(id)}`);
 			if (res.success) {
-				regulars = regulars.filter(r => r.twitch_id !== id);
+				regulars = regulars.filter(r => r.global_user_id !== id);
 			} else {
 				error = res.error ?? 'Failed to remove regular';
 			}
@@ -84,7 +85,7 @@
 				<UserPlus class="w-3 h-3" /> Añadir Nuevo Regular
 			</span>
 			<div class="flex flex-col sm:flex-row gap-2">
-				<Input placeholder="Nombre de usuario de Twitch" bind:value={login} class="flex-1 text-xs" onkeydown={(e) => e.key === 'Enter' && addRegular()} />
+				<Input placeholder="Nombre de usuario" bind:value={login} class="flex-1 text-xs" onkeydown={(e) => e.key === 'Enter' && addRegular()} />
 				<Button onclick={addRegular} disabled={adding || !login.trim()} size="sm" class="sm:w-12">
 					{adding ? '...' : '+'}
 				</Button>
@@ -100,15 +101,18 @@
 			{:else if regulars.length === 0}
 				<p class="text-sm text-muted-foreground text-center py-8 border-2 border-dashed rounded-lg italic">No hay espectadores habituales registrados.</p>
 			{:else}
-				{#each regulars as reg (reg.twitch_id)}
+				{#each regulars as reg (reg.global_user_id)}
 					<div class="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors shadow-sm">
 						<div class="flex flex-col gap-0.5">
-							<span class="text-sm font-bold">{reg.display_name}</span>
+							<div class="flex items-center gap-2">
+								<span class="text-sm font-bold">{reg.display_name}</span>
+								<Badge variant="outline" class="text-[0.6rem] px-1 py-0 h-4 uppercase">{reg.platform}</Badge>
+							</div>
 							<span class="text-[10px] text-muted-foreground uppercase tracking-tight">
-								{reg.login} ({reg.twitch_id}) &bull; <span class="text-primary font-bold">{reg.points} pts</span>
+								{reg.login ?? '—'} ({reg.global_user_id}) &bull; <span class="text-primary font-bold">{reg.points} pts</span>
 							</span>
 						</div>
-						<Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" onclick={() => removeRegular(reg.twitch_id)}>
+						<Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive" onclick={() => removeRegular(reg.global_user_id)}>
 							<Trash2 class="w-4 h-4" />
 						</Button>
 					</div>

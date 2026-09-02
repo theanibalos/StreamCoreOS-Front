@@ -81,12 +81,13 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each entries as entry (entry.twitch_id)}
+					{#each entries as entry (entry.global_user_id)}
 						<TableRow>
 							<TableCell class="font-medium text-lg">{medal(entry.rank)}</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">
 									<span class="font-semibold">{entry.display_name}</span>
+									<Badge variant="outline" class="text-[0.6rem] px-1 py-0 h-4 uppercase">{entry.platform}</Badge>
 									{#if entry.is_regular}
 										<Badge variant="secondary" class="text-[0.6rem] px-1 py-0 h-4">REG</Badge>
 									{/if}

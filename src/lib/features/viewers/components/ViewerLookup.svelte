@@ -48,7 +48,7 @@
 		adjusting = true;
 		error = null;
 		try {
-			const res = await post<AdjustPointsResponse>(`/viewers/${viewer.twitch_id}/points`, {
+			const res = await post<AdjustPointsResponse>(`/viewers/${encodeURIComponent(viewer.global_user_id)}/points`, {
 				delta
 			});
 			if (res.success && res.data) {
@@ -96,7 +96,7 @@
 		<div class="flex gap-2">
 			<Input
 				type="text"
-				placeholder="Twitch ID o username..."
+				placeholder="ID global, ID de plataforma o username..."
 				bind:value={query}
 				onkeydown={onKeydown}
 				class="flex-1"
@@ -118,12 +118,13 @@
 					<div class="flex items-center gap-2">
 						<User class="w-5 h-5 text-primary" />
 						<span class="text-lg font-bold">{viewer.display_name}</span>
+						<Badge variant="outline" class="text-[0.65rem] px-1.5 py-0 h-4.5 uppercase">{viewer.platform}</Badge>
 						{#if viewer.is_regular}
 							<Badge variant="secondary" class="text-[0.65rem] px-1.5 py-0 h-4.5 bg-blue-500/15 text-blue-600 dark:text-blue-400">REGULAR</Badge>
 						{/if}
 					</div>
 					<div class="text-xs text-muted-foreground ml-7">
-						ID: {viewer.twitch_id} &bull; login: {viewer.login}
+						ID: {viewer.global_user_id} &bull; plataforma: {viewer.platform_user_id} &bull; login: {viewer.login ?? '—'}
 					</div>
 				</div>
 
