@@ -22,6 +22,7 @@
 	} = $props();
 
 	let fileInputRef = $state<HTMLInputElement | null>(null);
+	let galleryRef = $state<any>(null);
 	let uploading = $state(false);
 
 	function updateConfig(configUpdates: Record<string, any>) {
@@ -41,6 +42,7 @@
 			);
 			if (!res.success) throw new Error(res.error);
 			updateConfig({ url: res.data.url });
+			galleryRef?.load?.();
 		} catch (e: any) {
 			show(`Error al subir: ${e.message}`, 'error');
 		} finally {
@@ -89,6 +91,7 @@
 	</div>
 
 	<BackgroundGallery
+		bind:this={galleryRef}
 		currentImage={element.config?.url as string | undefined}
 		onSelect={(url) => updateConfig({ url })}
 	/>
