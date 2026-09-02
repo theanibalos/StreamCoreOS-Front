@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TwitchPermissions } from '$lib/features/auth';
+	import { TwitchPermissions, YouTubePermissions } from '$lib/features/auth';
 	import { OverlayFeedToken } from '$lib/features/overlays';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
 	import { toggleMode } from 'mode-watcher';
@@ -34,6 +34,8 @@
 	</Card>
 
 	<OverlayFeedToken />
+
+	<YouTubePermissions />
 
 	<TwitchPermissions />
 </div>
