@@ -11,3 +11,4 @@ export * from './timers';
 export * from './subscribers';
 export * from './ai';
 export * from './tts';
+export * from './platforms';
