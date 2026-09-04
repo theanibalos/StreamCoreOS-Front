@@ -78,3 +78,17 @@ export type StreamOutputsResponse = ApiResponse<StreamOutputData[]>;
 export type StreamOutputResponse = ApiResponse<StreamOutputData>;
 export type StreamRuntimeStatusResponse = ApiResponse<StreamRuntimeStatusData>;
 export type DeleteStreamOutputResponse = ApiResponse<{ id: number; deleted: boolean }>;
+
+export interface EncoderItem {
+	id: string;
+	label: string;
+	type: string;
+	vendor: string;
+}
+
+export interface EncodersData {
+	available: EncoderItem[];
+	recommended: string;
+}
+
+export type EncodersResponse = ApiResponse<EncodersData>;

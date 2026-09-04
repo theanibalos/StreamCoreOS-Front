@@ -11,12 +11,17 @@ export const STAT_SOURCES = [
 ];
 
 export const ALERT_EVENTS = [
-	{ value: 'channel.follow',            label: 'Seguimiento (Follow)' },
-	{ value: 'channel.subscribe',         label: 'Suscripción / Resub' },
-	{ value: 'channel.subscription.gift', label: 'Sub Regalada' },
-	{ value: 'channel.cheer',             label: 'Bits (Cheer)' },
-	{ value: 'channel.raid',              label: 'Raid' },
-	{ value: 'chat.message',              label: 'Mensaje de Chat' }
+	{ value: 'channel.follow',            label: 'Twitch: Seguimiento (Follow)' },
+	{ value: 'channel.subscribe',         label: 'Twitch: Suscripción / Resub' },
+	{ value: 'channel.subscription.gift', label: 'Twitch: Sub Regalada' },
+	{ value: 'channel.cheer',             label: 'Twitch: Bits (Cheer)' },
+	{ value: 'channel.raid',              label: 'Twitch: Raid' },
+	{ value: 'youtube.superchat',         label: 'YouTube: Super Chat' },
+	{ value: 'youtube.supersticker',      label: 'YouTube: Super Sticker' },
+	{ value: 'youtube.member',            label: 'YouTube: Nueva Membresía' },
+	{ value: 'chat.message',              label: 'Chat: Mensaje Destacado' },
+	{ value: 'stream.session.started',    label: 'Sistema: Inicio de Stream' },
+	{ value: 'stream.session.ended',      label: 'Sistema: Fin de Stream' }
 ];
 
 export const ANIMATIONS: { value: ElementStyle['animation']; label: string }[] = [
@@ -33,5 +38,9 @@ export const ALERT_EVENT_VARS: Record<string, { name: string; label: string }[]>
 	'channel.subscription.gift': [{ name: 'user_name', label: 'Usuario' }, { name: 'total', label: 'Total' }, { name: 'tier', label: 'Tier' }],
 	'channel.cheer':             [{ name: 'user_name', label: 'Usuario' }, { name: 'bits', label: 'Bits' }],
 	'channel.raid':              [{ name: 'user_name', label: 'Usuario' }, { name: 'viewers', label: 'Espectadores' }],
-	'chat.message':              [{ name: 'display_name', label: 'Nombre' }, { name: 'message', label: 'Mensaje' }]
+	'youtube.superchat':         [{ name: 'user_name', label: 'Donante' }, { name: 'display_amount', label: 'Monto' }, { name: 'message', label: 'Mensaje' }],
+	'youtube.supersticker':      [{ name: 'user_name', label: 'Donante' }, { name: 'display_amount', label: 'Monto' }],
+	'youtube.member':            [{ name: 'user_name', label: 'Miembro' }, { name: 'message', label: 'Detalle' }],
+	'chat.message':              [{ name: 'display_name', label: 'Nombre' }, { name: 'message', label: 'Mensaje' }, { name: 'platform', label: 'Plataforma' }],
+	'stream.session.started':    [{ name: 'broadcaster_login', label: 'Canal' }]
 };

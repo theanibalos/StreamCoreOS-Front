@@ -31,10 +31,11 @@ export type OverlayElement = {
 
 export type ActiveAlert = {
 	elementId: string;
-	/** Raw event type (e.g. 'channel.follow'). Present on live events; use it to filter instead of guessing by vars shape. */
+	/** Raw event type (e.g. 'channel.follow', 'youtube.superchat', 'stream.session.started'). */
 	type?: string;
 	vars: Record<string, string>;
 	expiresAt: number;
+	raw?: any;
 };
 
 export type ChatFragment = {
@@ -44,13 +45,42 @@ export type ChatFragment = {
 	emote_animated?: boolean;
 };
 
+export type ChatUser = {
+	id: string;
+	platform_id?: string;
+	login?: string | null;
+	display_name: string;
+	avatar_url?: string | null;
+};
+
+export type ChatRoles = {
+	broadcaster?: boolean;
+	moderator?: boolean;
+	subscriber?: boolean;
+	vip?: boolean;
+	verified?: boolean;
+};
+
+export type ChatBadge = {
+	set: string;
+	version: string;
+	url?: string;
+};
+
 export type ChatMessage = {
+	platform: 'twitch' | 'youtube' | string;
+	message_id?: string;
 	display_name: string;
 	message: string;
 	timestamp: number;
 	color?: string;
-	badges?: Record<string, string>;
+	user: ChatUser;
+	badges?: ChatBadge[] | Record<string, string>;
 	fragments?: ChatFragment[];
+	roles?: ChatRoles;
+	channel_name?: string;
+	channel_id?: string;
+	raw?: any;
 };
 
 // ── Widget self-description (editor schema) ─────────────────────────────

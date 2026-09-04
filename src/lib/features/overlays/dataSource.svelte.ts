@@ -19,22 +19,121 @@ const BROADCAST_ELEMENT_ID = '__broadcast__';
 // Sample chat feed shown in preview mode (builder canvas + live ?preview).
 const PREVIEW_CHAT_SAMPLE: ChatMessage[] = [
 	{
-		display_name: 'StreamFan',
-		message: '¡Qué buen stream!',
+		platform: 'twitch',
+		display_name: 'TwitchFan',
+		message: '¡Qué buen stream! PogChamp',
 		timestamp: 1,
-		color: '#FF4500',
-		badges: {},
-		fragments: [{ type: 'text', text: '¡Qué buen stream!' }]
+		color: '#9146FF',
+		user: {
+			id: 'twitch:12345',
+			platform_id: '12345',
+			display_name: 'TwitchFan',
+			avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=TwitchFan'
+		},
+		badges: [{ set: 'subscriber', version: '6' }],
+		fragments: [
+			{ type: 'text', text: '¡Qué buen stream! ' },
+			{ type: 'emote', text: 'PogChamp', emote_id: '88', emote_animated: false }
+		],
+		roles: { subscriber: true }
 	},
 	{
-		display_name: 'ModUser',
-		message: 'Muy buen contenido!',
+		platform: 'youtube',
+		display_name: 'AlexYT',
+		message: 'Saludos desde YouTube! 🔥',
 		timestamp: 2,
+		color: '#FF0000',
+		user: {
+			id: 'youtube:UC12345',
+			platform_id: 'UC12345',
+			display_name: 'AlexYT',
+			avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AlexYT'
+		},
+		badges: [{ set: 'member', version: '1' }],
+		fragments: [{ type: 'text', text: 'Saludos desde YouTube! 🔥' }],
+		roles: { subscriber: true }
+	},
+	{
+		platform: 'twitch',
+		display_name: 'ModUser',
+		message: 'Bienvenidos a todos al directo',
+		timestamp: 3,
 		color: '#00C8AF',
-		badges: { moderator: '1' },
-		fragments: [{ type: 'text', text: 'Muy buen contenido!' }]
+		user: {
+			id: 'twitch:99999',
+			platform_id: '99999',
+			display_name: 'ModUser',
+			avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=ModUser'
+		},
+		badges: [{ set: 'moderator', version: '1' }],
+		fragments: [{ type: 'text', text: 'Bienvenidos a todos al directo' }],
+		roles: { moderator: true }
 	}
 ];
+
+export function normalizeChatMessage(raw: any): ChatMessage {
+	if (!raw) {
+		return {
+			platform: 'twitch',
+			display_name: 'Usuario',
+			message: '',
+			timestamp: Date.now(),
+			user: {
+				id: 'twitch:0',
+				display_name: 'Usuario',
+				avatar_url: null
+			}
+		};
+	}
+
+	const platform = raw.platform || (raw.user?.id?.startsWith('youtube') ? 'youtube' : 'twitch');
+	const userObj = raw.user || {};
+
+	const displayName =
+		raw.display_name ||
+		userObj.display_name ||
+		raw.chatter_user_name ||
+		raw.user_name ||
+		raw.username ||
+		userObj.name ||
+		userObj.login ||
+		raw.chatter_user_login ||
+		'Espectador';
+
+	const avatarUrl =
+		raw.avatar_url ||
+		userObj.avatar_url ||
+		userObj.profileImageUrl ||
+		userObj.profile_image_url ||
+		raw.profileImageUrl ||
+		null;
+
+	const messageText = raw.message || raw.text || raw.content || '';
+	const color = raw.color || (platform === 'youtube' ? '#ff4e45' : '#a970ff');
+
+	return {
+		platform,
+		display_name: displayName,
+		message: messageText,
+		timestamp: typeof raw.timestamp === 'number' ? raw.timestamp : (raw.timestamp ? new Date(raw.timestamp).getTime() : Date.now()),
+		color,
+		badges: raw.badges || [],
+		fragments: raw.fragments || [{ type: 'text', text: messageText }],
+		user: {
+			id: userObj.id || raw.user_id || raw.chatter_user_id || `${platform}:${displayName}`,
+			platform_id: userObj.platform_id || raw.chatter_user_id || '',
+			display_name: displayName,
+			avatar_url: avatarUrl,
+			login: userObj.login || raw.chatter_user_login || displayName.toLowerCase()
+		},
+		roles: raw.roles || {
+			broadcaster: false,
+			moderator: false,
+			subscriber: false
+		},
+		raw
+	};
+}
 
 function widgetNeeds(el: OverlayElement, need: 'stats' | 'chat' | 'alerts'): boolean {
 	return WIDGET_REGISTRY[el.type]?.meta.needs?.includes(need) ?? false;
@@ -83,13 +182,18 @@ export function createOverlayDataSource(
 		if (changed) liveStats = next;
 	}
 
-	function ingestChat(msg: ChatMessage) {
+	function ingestChat(rawMsg: any) {
+		const msg = normalizeChatMessage(rawMsg);
 		const elements = getElements();
 		for (const el of elements) {
 			if (!widgetNeeds(el, 'chat')) continue;
 			const filterUser = el.trigger?.filter_user;
 			if (filterUser && msg.display_name?.toLowerCase() !== filterUser.toLowerCase()) continue;
-			liveChat[el.id] = [...(liveChat[el.id] ?? []).slice(-5), msg];
+			const filterPlatform = (el.config?.platform as string) || (el.trigger as any)?.platform || 'all';
+			if (filterPlatform !== 'all' && msg.platform && msg.platform.toLowerCase() !== filterPlatform.toLowerCase()) {
+				continue;
+			}
+			liveChat[el.id] = [...(liveChat[el.id] ?? []).slice(-20), msg];
 		}
 	}
 
@@ -156,7 +260,7 @@ export function createOverlayDataSource(
 						ingestStats(raw.data);
 						break;
 					case 'chat':
-						ingestChat({ ...raw.data, timestamp: Date.now() });
+						ingestChat(raw.data);
 						break;
 					case 'alert':
 						ingestAlert(raw.data.type, raw.data.data);
@@ -213,7 +317,14 @@ export function createOverlayDataSource(
 		const elements = getElements();
 		const out: Record<string, ChatMessage[]> = {};
 		for (const el of elements) {
-			if (widgetNeeds(el, 'chat')) out[el.id] = PREVIEW_CHAT_SAMPLE;
+			if (widgetNeeds(el, 'chat')) {
+				const filterPlatform = (el.config?.platform as string) || (el.trigger as any)?.platform || 'all';
+				if (filterPlatform === 'all') {
+					out[el.id] = PREVIEW_CHAT_SAMPLE;
+				} else {
+					out[el.id] = PREVIEW_CHAT_SAMPLE.filter((m) => m.platform === filterPlatform);
+				}
+			}
 		}
 		return out;
 	});

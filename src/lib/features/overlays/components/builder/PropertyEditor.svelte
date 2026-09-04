@@ -7,7 +7,7 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Slider } from '$lib/components/ui/slider';
 	import { tick } from 'svelte';
-	import { Layers, Trash2, Copy, ImageIcon, ChevronUp, ChevronDown, Maximize, Minimize } from '@lucide/svelte';
+	import { Layers, Trash2, Copy, ImageIcon, ChevronUp, ChevronDown, Maximize, Minimize, Code, Bot } from '@lucide/svelte';
 	import { WIDGET_REGISTRY } from '../../index';
 	import type { OverlayElement, ElementStyle, EditorField } from '../../index';
 
@@ -20,7 +20,9 @@
 		onDuplicate,
 		onMoveLayer,
 		canvasWidth = 1920,
-		canvasHeight = 1080
+		canvasHeight = 1080,
+		onOpenCodeWorkspace,
+		onOpenAIPrompt
 	}: {
 		selected: OverlayElement | null;
 		elements?: OverlayElement[];
@@ -31,6 +33,8 @@
 		onMoveLayer: (dir: 'up' | 'down' | 'front' | 'back') => void;
 		canvasWidth?: number;
 		canvasHeight?: number;
+		onOpenCodeWorkspace?: () => void;
+		onOpenAIPrompt?: () => void;
 	} = $props();
 
 	// Icons + labels derived from each widget's meta (no per-type hardcoding).
@@ -181,7 +185,58 @@
 				</div>
 
 				<!-- Bespoke editor UI provided by the widget (e.g. media, custom_code) -->
-				{#if EditorComponent}
+				{#if selected.type === 'custom_code'}
+					<div class="p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 shadow-sm">
+						<div class="flex items-center gap-2">
+							<div class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+								<Code class="w-4 h-4" />
+							</div>
+							<div>
+								<p class="text-xs font-semibold text-foreground">Código Personalizado</p>
+								<p class="text-[10px] text-muted-foreground">HTML, CSS y JS con datos en vivo</p>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+							<div class="p-1.5 rounded bg-black/40 border border-white/5">
+								<span class="text-orange-400 font-bold block">HTML</span>
+								<span class="text-muted-foreground text-[9px]">{selected.config?.html ? 'Listo' : 'Vacío'}</span>
+							</div>
+							<div class="p-1.5 rounded bg-black/40 border border-white/5">
+								<span class="text-sky-400 font-bold block">CSS</span>
+								<span class="text-muted-foreground text-[9px]">{selected.config?.css ? 'Listo' : 'Vacío'}</span>
+							</div>
+							<div class="p-1.5 rounded bg-black/40 border border-white/5">
+								<span class="text-amber-400 font-bold block">JS</span>
+								<span class="text-muted-foreground text-[9px]">{selected.config?.js ? 'Listo' : 'Vacío'}</span>
+							</div>
+						</div>
+
+						<div class="space-y-1.5 pt-1">
+							<Button
+								variant="default"
+								size="sm"
+								class="w-full text-xs gap-1.5 bg-primary hover:bg-primary/90 font-semibold shadow-sm"
+								onclick={onOpenCodeWorkspace}
+							>
+								<Code class="w-3.5 h-3.5" />
+								<span>Abrir en Editor Central</span>
+							</Button>
+
+							{#if onOpenAIPrompt}
+								<Button
+									variant="outline"
+									size="sm"
+									class="w-full text-xs gap-1.5 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30 font-medium"
+									onclick={onOpenAIPrompt}
+								>
+									<Bot class="w-3.5 h-3.5" />
+									<span>Generar con IA (Prompt)</span>
+								</Button>
+							{/if}
+						</div>
+					</div>
+				{:else if EditorComponent}
 					{#key selected.id}
 						<EditorComponent
 							element={selected}
@@ -381,13 +436,13 @@
 						{#each [...elements].reverse() as el}
 							{@const Icon = WIDGET_ICONS[el.type] || Layers}
 							<button
-								class="w-full flex items-center justify-between p-2 rounded-lg border text-left text-xs transition-all {el.id === selected.id ? 'border-primary bg-primary/10 text-primary-foreground font-semibold' : 'border-transparent bg-card/40 hover:bg-card/90'}"
+								class="w-full flex items-center justify-between p-2 rounded-lg border text-left text-xs transition-all {el.id === selected.id ? 'border-primary bg-primary/20 text-white font-semibold shadow-sm' : 'border-border/50 bg-card/60 hover:bg-card/90 text-zinc-200'}"
 								onclick={() => onSelect(el.id)}
 							>
 								<div class="flex items-center gap-1.5 truncate">
 									<Icon class="w-3.5 h-3.5 shrink-0 text-primary" />
-									<span class="truncate">{ELEMENT_LABELS[el.type] || el.type}</span>
-									<span class="text-[9px] opacity-50 font-mono">({el.id})</span>
+									<span class="truncate text-zinc-100 font-medium">{ELEMENT_LABELS[el.type] || el.type}</span>
+									<span class="text-[9px] text-zinc-400 font-mono">({el.id})</span>
 								</div>
 							</button>
 						{/each}
@@ -419,17 +474,17 @@
 							{#each [...elements].reverse() as el}
 								{@const Icon = WIDGET_ICONS[el.type] || Layers}
 								<button
-									class="w-full flex items-center justify-between p-2.5 rounded-lg border bg-card/40 hover:bg-primary/5 hover:border-primary/30 transition-all text-left"
+									class="w-full flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-card/60 hover:bg-primary/10 hover:border-primary/40 transition-all text-left"
 									onclick={() => onSelect(el.id)}
 								>
 									<div class="flex items-center gap-2 truncate">
 										<Icon class="w-4 h-4 text-primary shrink-0" />
 										<div class="flex flex-col truncate">
-											<span class="text-xs font-semibold text-foreground truncate">{ELEMENT_LABELS[el.type] || el.type}</span>
-											<span class="text-[9px] text-muted-foreground font-mono truncate">{el.id}</span>
+											<span class="text-xs font-semibold text-zinc-100 truncate">{ELEMENT_LABELS[el.type] || el.type}</span>
+											<span class="text-[9px] text-zinc-400 font-mono truncate">{el.id}</span>
 										</div>
 									</div>
-									<div class="text-[9px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded shrink-0">
+									<div class="text-[9px] text-zinc-300 font-mono bg-muted/70 px-1.5 py-0.5 rounded shrink-0">
 										x:{Math.round(el.x)}, y:{Math.round(el.y)}
 									</div>
 								</button>

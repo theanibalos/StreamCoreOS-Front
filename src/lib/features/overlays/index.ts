@@ -99,7 +99,11 @@ export const PREVIEW_VARS: Record<string, Record<string, string>> = {
 	'channel.subscription.gift': { user_name: 'GiftKing', total: '5', tier: '1000' },
 	'channel.cheer': { user_name: 'BitsMaster', bits: '1000' },
 	'channel.raid': { user_name: 'FriendStream', viewers: '247' },
-	'chat.message': { display_name: 'ChatUser', message: 'Hola! PogChamp' }
+	'youtube.superchat': { user_name: 'AlexYT', display_amount: '$10.00', message: '¡Gran directo! Saludos desde México 🔥' },
+	'youtube.supersticker': { user_name: 'SuperFan', display_amount: '$5.00' },
+	'youtube.member': { user_name: 'SocioVIP', message: '¡Nuevo miembro del canal!' },
+	'chat.message': { display_name: 'ChatUser', message: 'Hola! PogChamp', platform: 'twitch' },
+	'stream.session.started': { broadcaster_login: 'StreamerPro' }
 };
 
 export const PREVIEW_STAT_VALUES: Record<string, string> = {

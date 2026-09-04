@@ -8,6 +8,7 @@
 
 	let {
 		output,
+		overlays = [],
 		onEdit,
 		onDelete,
 		onToggle,
@@ -15,12 +16,17 @@
 		onStop
 	}: {
 		output: StreamOutputData;
+		overlays?: Array<{ id: number; name: string }>;
 		onEdit?: (output: StreamOutputData) => void;
 		onDelete?: (output: StreamOutputData) => void;
 		onToggle?: (output: StreamOutputData, enabled: boolean) => void;
 		onStart?: (output: StreamOutputData) => void;
 		onStop?: (output: StreamOutputData) => void;
 	} = $props();
+
+	const overlayName = $derived(
+		output.overlay_id ? (overlays.find((o) => o.id === output.overlay_id)?.name ?? `ID: ${output.overlay_id}`) : 'Sin Overlay'
+	);
 
 	const platformColors: Record<string, string> = {
 		twitch: 'border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-300',
@@ -61,6 +67,9 @@
 				<p class="text-xs text-muted-foreground font-mono truncate mt-1">{output.rtmp_url ?? 'Sin RTMP URL'}</p>
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
+				<Badge variant="outline" class="border-muted-foreground/30 bg-muted/20 text-muted-foreground text-[10px]">
+					⏩ Directo (0% CPU)
+				</Badge>
 				<Badge variant="outline" class={platformColors[output.platform] ?? platformColors.custom}>{output.platform}</Badge>
 				<Badge variant="secondary" class={statusColors[output.status] ?? ''}>{statusLabels[output.status] ?? output.status}</Badge>
 			</div>
@@ -73,11 +82,11 @@
 			</div>
 			<div class="rounded-md bg-muted/40 p-2">
 				<p class="text-muted-foreground uppercase font-black text-[10px]">Overlay</p>
-				<p>{output.overlay_id ?? '—'}</p>
+				<p class="truncate font-medium">{overlayName}</p>
 			</div>
-			<div class="rounded-md bg-muted/40 p-2">
-				<p class="text-muted-foreground uppercase font-black text-[10px] flex items-center gap-1"><KeyRound class="w-3 h-3" /> Key</p>
-				<p>{output.stream_key_configured ? `••••${output.stream_key_preview}` : 'No configurada'}</p>
+			<div class="rounded-md {output.stream_key_configured ? 'bg-muted/40' : 'bg-amber-500/10 border border-amber-500/30'} p-2">
+				<p class="text-muted-foreground uppercase font-black text-[10px] flex items-center gap-1"><KeyRound class="w-3 h-3 {output.stream_key_configured ? '' : 'text-amber-500'}" /> Key</p>
+				<p class="{output.stream_key_configured ? '' : 'text-amber-500 font-bold'}">{output.stream_key_configured ? `••••${output.stream_key_preview}` : '⚠️ Sin Clave'}</p>
 			</div>
 		</div>
 

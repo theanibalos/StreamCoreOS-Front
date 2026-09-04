@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get, post, put, del } from '$lib/core/api/client';
-	import type { PlatformConnectionData, PlatformConnectionsResponse, StreamOutputData, StreamOutputsResponse, StreamOutputResponse, DeleteStreamOutputResponse, StreamRuntimeStatusData } from '$lib/types/api';
+	import type {
+		PlatformConnectionData,
+		PlatformConnectionsResponse,
+		StreamOutputData,
+		StreamOutputResponse,
+		StreamOutputsResponse,
+		StreamRuntimeStatusData,
+		DeleteStreamOutputResponse
+	} from '$lib/types/api';
 	import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
@@ -12,8 +20,11 @@
 
 	let { runtime = null, onStatusChange }: { runtime?: StreamRuntimeStatusData | null; onStatusChange?: () => void } = $props();
 
+	type OverlayItem = { id: number; name: string; created_at?: string; updated_at?: string };
+
 	let outputs = $state<StreamOutputData[]>([]);
 	let connections = $state<PlatformConnectionData[]>([]);
+	let overlays = $state<OverlayItem[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	let actionBusy = $state(false);
@@ -21,6 +32,7 @@
 	let formError = $state<string | null>(null);
 	let showForm = $state(false);
 	let editingId = $state<number | null>(null);
+	let editingOutput = $state<StreamOutputData | null>(null);
 
 	let name = $state('');
 	let platform = $state('youtube');
@@ -46,12 +58,14 @@
 		loading = true;
 		error = null;
 		try {
-			const [outputsRes, connectionsRes] = await Promise.all([
+			const [outputsRes, connectionsRes, overlaysRes] = await Promise.all([
 				get<StreamOutputsResponse>('/stream-outputs'),
-				get<PlatformConnectionsResponse>('/platforms/connections')
+				get<PlatformConnectionsResponse>('/platforms/connections'),
+				get<{ success: boolean; data: OverlayItem[]; error?: string }>('/overlays')
 			]);
 			outputs = outputsRes.success ? (outputsRes.data ?? []) : [];
 			connections = connectionsRes.success ? (connectionsRes.data ?? []) : [];
+			overlays = overlaysRes.success ? (overlaysRes.data ?? []) : [];
 			if (!outputsRes.success) error = outputsRes.error ?? 'No se pudieron cargar los destinos.';
 			if (!connectionsRes.success) error = connectionsRes.error ?? 'No se pudieron cargar las conexiones.';
 		} catch (e) {
@@ -63,6 +77,7 @@
 
 	function resetForm() {
 		editingId = null;
+		editingOutput = null;
 		name = '';
 		platform = 'youtube';
 		selectedConnectionId = connections.find((c) => c.platform === 'youtube' && c.enabled)?.id.toString() ?? '';
@@ -81,6 +96,7 @@
 
 	function startEdit(output: StreamOutputData) {
 		editingId = output.id;
+		editingOutput = output;
 		name = output.name;
 		platform = output.platform;
 		selectedConnectionId = connections.find((c) => c.platform === output.platform && c.channel_id === output.channel_id)?.id.toString() ?? '';
@@ -105,35 +121,44 @@
 	}
 
 	function resolvedChannelId() {
-		if (platform === 'custom') return channelId.trim();
-		return selectedConnection?.channel_id ?? channelId.trim();
+		if (platform === 'custom') return String(channelId || '').trim();
+		return selectedConnection?.channel_id ?? String(channelId || '').trim();
 	}
 
 	function buildPayload() {
+		const numOverlay = overlayId ? Number(overlayId) : null;
 		const payload: Record<string, unknown> = {
-			name: name.trim(),
+			name: String(name || '').trim(),
 			platform,
 			channel_id: resolvedChannelId(),
 			enabled,
-			overlay_id: overlayId.trim() ? Number(overlayId) : null,
-			rtmp_url: rtmpUrl.trim() || null
+			overlay_id: numOverlay && !isNaN(numOverlay) ? numOverlay : null,
+			rtmp_url: String(rtmpUrl || '').trim() || null
 		};
-		if (streamKey.trim()) payload.stream_key_secret = streamKey.trim();
+		if (streamKey && String(streamKey).trim()) payload.stream_key_secret = String(streamKey).trim();
 		return payload;
 	}
 
 	async function save() {
 		formError = null;
-		if (!name.trim()) {
+		if (!String(name || '').trim()) {
 			formError = 'El nombre es obligatorio.';
 			return;
 		}
-		if (platform === 'custom' && !channelId.trim()) {
+		if (platform === 'custom' && !String(channelId || '').trim()) {
 			formError = 'En destinos custom sí hace falta un identificador manual.';
 			return;
 		}
 		if (platform !== 'custom' && !resolvedChannelId()) {
 			formError = `Conecta o selecciona una cuenta de ${platform} primero. Así no tendrás que escribir el Channel ID.`;
+			return;
+		}
+		if (!editingId && !String(streamKey || '').trim()) {
+			formError = 'La Stream Key (clave de transmisión) es obligatoria para emitir a ' + platform + '.';
+			return;
+		}
+		if (editingOutput && !editingOutput.stream_key_configured && !String(streamKey || '').trim()) {
+			formError = 'Este destino aún no tiene Stream Key configurada. Debes pegar tu clave de transmisión.';
 			return;
 		}
 		saving = true;
@@ -291,6 +316,7 @@
 			<div class="flex items-center gap-3 w-full lg:w-auto justify-end">
 				{#if isAnyLive}
 					<Button 
+						type="button"
 						size="lg" 
 						variant="destructive" 
 						class="w-full lg:w-auto px-8 font-bold text-base shadow-lg shadow-destructive/20"
@@ -301,6 +327,7 @@
 					</Button>
 				{:else}
 					<Button 
+						type="button"
 						size="lg" 
 						class="w-full lg:w-auto px-8 font-bold text-base bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20"
 						onclick={() => markAll('live')} 
@@ -311,6 +338,16 @@
 				{/if}
 			</div>
 		</div>
+
+		{#if error}
+			<div class="mt-4 p-3.5 rounded-xl border border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2.5">
+				<AlertTriangle class="w-5 h-5 shrink-0 mt-0.5" />
+				<div>
+					<p class="text-xs font-bold uppercase tracking-wider">Error en la transmisión:</p>
+					<p class="text-xs mt-0.5">{error}</p>
+				</div>
+			</div>
+		{/if}
 	</CardContent>
 </Card>
 
@@ -331,10 +368,6 @@
 			</Button>
 		</div>
 	</CardHeader>
-
-	{#if error}
-		<p class="text-xs text-destructive font-medium bg-destructive/10 p-2 rounded mx-6 mt-4">{error}</p>
-	{/if}
 
 	{#if showForm}
 		<CardContent class="bg-muted/30 border-b p-6 flex flex-col gap-4 animate-in slide-in-from-top-2 duration-200">
@@ -377,14 +410,24 @@
 				</div>
 				<div class="flex flex-col gap-2">
 					<label for="output-key" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stream key del destino</label>
-					<Input id="output-key" type="password" bind:value={streamKey} placeholder={editingId ? 'Dejar vacío para mantener' : 'clave secreta'} />
+					<Input
+						id="output-key"
+						type="password"
+						bind:value={streamKey}
+						placeholder={editingOutput?.stream_key_configured ? '•••••••• (Dejar vacío para mantener)' : 'Pega aquí tu clave de emisión (Stream Key)'}
+					/>
 				</div>
 			</div>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
 				<div class="flex flex-col gap-2">
-					<label for="output-overlay" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Overlay ID</label>
-					<Input id="output-overlay" type="number" min="1" bind:value={overlayId} placeholder="Opcional" />
+					<label for="output-overlay" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Overlay para este Destino</label>
+					<select id="output-overlay" bind:value={overlayId} class="h-9 rounded-md border bg-background px-3 text-sm">
+						<option value="">Sin Overlay (Directo / Passthrough)</option>
+						{#each overlays as ov}
+							<option value={String(ov.id)}>{ov.name} (ID: {ov.id})</option>
+						{/each}
+					</select>
 				</div>
 				<div class="flex items-center gap-3 h-9">
 					<Switch bind:checked={enabled} />
@@ -411,7 +454,7 @@
 		{:else}
 			<div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
 				{#each outputs as output (output.id)}
-					<StreamOutputCard output={output} onEdit={startEdit} onDelete={remove} onToggle={toggleOutput} onStart={(o) => markStatus(o, 'live')} onStop={(o) => markStatus(o, 'stopped')} />
+					<StreamOutputCard output={output} {overlays} onEdit={startEdit} onDelete={remove} onToggle={toggleOutput} onStart={(o) => markStatus(o, 'live')} onStop={(o) => markStatus(o, 'stopped')} />
 				{/each}
 			</div>
 		{/if}

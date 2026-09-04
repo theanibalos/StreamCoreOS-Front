@@ -219,7 +219,17 @@ A continuación se detalla la lista completa de eventos de Twitch y del sistema 
 | **`channel.raid`** | Invasión (Raid) desde otro canal. | <ul><li>`user_name` / `from_broadcaster_user_name`: Nombre del canal invasor.</li><li>`viewers`: Cantidad de espectadores que llegan.</li></ul> | `{"user_name": "FriendStream", "viewers": "247"}` |
 | **`channel.channel_points_custom_reward_redemption.add`** o **`loyalty.reward.redeemed`** | Canje de recompensa de puntos de canal de Twitch. | <ul><li>`display_name` / `user_name`: Espectador que canjeó.</li><li>`reward_name` / `reward.title`: Nombre del canje (ej: `"TTS"`).</li><li>`cost`: Puntos consumidos.</li><li>`user_input`: Texto ingresado si el canje requiere escribir.</li></ul> | `{"display_name": "ViewerPuntos", "reward_name": "Activar Sonido", "cost": "250", "user_input": "sonido.mp3"}` |
 
-#### 2. Eventos del Ciclo de Vida del Stream y Sistema
+#### 2. YouTube Live y Monetización (`activeAlerts`)
+
+StreamCoreOS integra automáticamente la transmisión de eventos de YouTube:
+
+| Evento (`type`) | Descripción | Campos en `vars` | Ejemplo de Estructura JSON |
+| :--- | :--- | :--- | :--- |
+| **`youtube.superchat`** | Donación de Super Chat en directo. | <ul><li>`user_name`: Nombre del donante.</li><li>`display_amount`: Monto formateado (ej: `"$10.00"`).</li><li>`message`: Mensaje del Super Chat.</li><li>`currency`: Código de divisa.</li></ul> | `{"user_name": "AlexYT", "display_amount": "$10.00", "message": "¡Gran stream!", "currency": "USD"}` |
+| **`youtube.supersticker`** | Donación de Super Sticker de YouTube. | <ul><li>`user_name`: Nombre del donante.</li><li>`display_amount`: Monto formateado.</li><li>`message`: Texto alternativo del sticker.</li></ul> | `{"user_name": "FanSuper", "display_amount": "$5.00", "message": "Super Sticker"}` |
+| **`youtube.member`** | Nueva membresía o patrocinio de canal. | <ul><li>`user_name`: Nombre del nuevo miembro.</li><li>`message`: Detalle o nivel de membresía.</li></ul> | `{"user_name": "SocioVIP", "message": "se hizo miembro del canal"}` |
+
+#### 3. Eventos del Ciclo de Vida del Stream y Sistema
 
 Estos eventos se pueden capturar para ejecutar acciones automáticas en tu overlay (como activar/desactivar overlays de inicio, activar efectos, etc.):
 
@@ -237,38 +247,53 @@ Estos eventos se pueden capturar para ejecutar acciones automáticas en tu overl
     *   `action`: Acción ejecutada (`timeout`, `ban`, `clear`, etc.).
     *   `reason`: Razón ingresada por el moderador.
 
-#### 3. Estructura de Mensaje de Chat (`chatMessages`)
+#### 4. Estructura Multiplataforma de Chat (`chatMessages`)
 
-A través de `data.chatMessages` en el constructor, cada objeto de mensaje contiene:
+A través de `data.chatMessages` en el constructor, cada objeto de mensaje contiene la plataforma de origen (`'youtube'` o `'twitch'`) y los datos del espectador:
 
 ```json
 {
+  "platform": "youtube",
   "display_name": "NombreDeUsuario",
   "message": "Mensaje en texto plano",
   "timestamp": 1718589000000,
-  "color": "#e11d48",
-  "badges": {
-    "moderator": "1",
-    "subscriber": "6"
+  "color": "#ff4e45",
+  "user": {
+    "id": "youtube:UC1234567890",
+    "display_name": "NombreDeUsuario",
+    "avatar_url": "https://yt3.ggpht.com/..."
   },
+  "roles": {
+    "broadcaster": false,
+    "moderator": false,
+    "subscriber": true
+  },
+  "badges": [
+    { "set": "member", "version": "1" }
+  ],
   "fragments": [
-    {
-      "type": "text",
-      "text": "Hola "
-    },
-    {
-      "type": "emote",
-      "text": "PogChamp",
-      "emote_id": "88",
-      "emote_animated": false
-    }
+    { "type": "text", "text": "Hola a todos!" }
   ]
 }
 ```
 
-> [!NOTE]
-> La lista `fragments` es ideal para renderizar el chat de Twitch de forma correcta, traduciendo directamente los emotes oficiales a etiquetas `<img>` usando la URL:
-> `https://static-cdn.jtvnw.net/emoticons/v2/<emote_id>/<animated|static>/dark/1.0`
+##### 🎯 Cómo Filtrar Solo Chat de YouTube en JavaScript:
+```javascript
+window.addEventListener('streamupdate', (event) => {
+  const chatData = event.detail.chatMessages || {};
+  const allMessages = Object.values(chatData).flat();
+  
+  // FILTRAR SOLO YOUTUBE:
+  const youtubeMsgs = allMessages.filter(msg => msg.platform === 'youtube');
+  
+  youtubeMsgs.forEach(msg => {
+    console.log(`[YouTube] ${msg.display_name}: ${msg.message}`);
+    if (msg.user?.avatar_url) {
+      // Renderizar avatar del canal de YouTube
+    }
+  });
+});
+```
 
 ---
 

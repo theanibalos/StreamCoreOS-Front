@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowLeft, Layers, Copy, ExternalLink, Play, Save, Monitor } from '@lucide/svelte';
+	import { ArrowLeft, Layers, Copy, ExternalLink, Play, Save, Monitor, BookOpen, Bot } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	const PRESETS = [
@@ -19,7 +19,9 @@
 		liveUrl,
 		onSave,
 		onCopyLiveUrl,
-		onTestAlert
+		onTestAlert,
+		onOpenLibrary,
+		onOpenPrompt
 	}: {
 		overlayName: string;
 		canvasWidth: number;
@@ -29,6 +31,8 @@
 		onSave: () => void;
 		onCopyLiveUrl: () => void;
 		onTestAlert: () => void;
+		onOpenLibrary?: () => void;
+		onOpenPrompt?: () => void;
 	} = $props();
 
 	let manualCustom = $state(false);
@@ -101,6 +105,16 @@
 	</div>
 
 	<div class="flex items-center gap-2 ml-auto">
+		{#if onOpenPrompt}
+			<Button variant="outline" size="sm" class="h-8 text-xs text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30" onclick={onOpenPrompt} title="Copiar prompt maestro para IA">
+				<Bot class="w-3.5 h-3.5 mr-1.5" /> Prompt IA
+			</Button>
+		{/if}
+		{#if onOpenLibrary}
+			<Button variant="outline" size="sm" class="h-8 text-xs text-primary bg-primary/5 hover:bg-primary/10 border-primary/20" onclick={onOpenLibrary}>
+				<BookOpen class="w-3.5 h-3.5 mr-1.5" /> Librería Eventos
+			</Button>
+		{/if}
 		<Button variant="outline" size="sm" class="h-8 text-xs" onclick={onCopyLiveUrl}>
 			<Copy class="w-3.5 h-3.5 mr-1.5" /> URL OBS
 		</Button>
