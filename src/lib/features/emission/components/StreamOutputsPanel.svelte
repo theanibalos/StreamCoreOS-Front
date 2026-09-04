@@ -114,15 +114,24 @@
 		resetForm();
 	}
 
+	$effect(() => {
+		if (platform !== 'custom' && connectedForPlatform.length > 0) {
+			if (!selectedConnectionId || !connectedForPlatform.some((c) => String(c.id) === selectedConnectionId)) {
+				selectedConnectionId = String(connectedForPlatform[0].id);
+			}
+		}
+	});
+
 	function onPlatformChange() {
-		selectedConnectionId = connectedForPlatform[0]?.id.toString() ?? '';
+		const matches = connections.filter((c) => c.platform === platform && c.enabled);
+		selectedConnectionId = matches[0]?.id.toString() ?? '';
 		if (platform !== 'custom') channelId = '';
 		rtmpUrl = defaultRtmp[platform] ?? '';
 	}
 
 	function resolvedChannelId() {
-		if (platform === 'custom') return String(channelId || '').trim();
-		return selectedConnection?.channel_id ?? String(channelId || '').trim();
+		if (selectedConnection?.channel_id) return selectedConnection.channel_id;
+		return String(channelId || '').trim();
 	}
 
 	function buildPayload() {
@@ -145,12 +154,9 @@
 			formError = 'El nombre es obligatorio.';
 			return;
 		}
-		if (platform === 'custom' && !String(channelId || '').trim()) {
-			formError = 'En destinos custom sí hace falta un identificador manual.';
-			return;
-		}
-		if (platform !== 'custom' && !resolvedChannelId()) {
-			formError = `Conecta o selecciona una cuenta de ${platform} primero. Así no tendrás que escribir el Channel ID.`;
+		const finalChannel = resolvedChannelId();
+		if (!finalChannel && platform === 'custom') {
+			formError = 'En destinos custom hace falta un identificador de canal.';
 			return;
 		}
 		if (!editingId && !String(streamKey || '').trim()) {
@@ -395,10 +401,16 @@
 							{/each}
 						</select>
 					{:else}
-						<div class="h-9 rounded-md border bg-background px-3 text-sm flex items-center text-muted-foreground">Conecta {platform} en Settings</div>
+						<Input id="output-account" bind:value={channelId} placeholder="Nombre de tu canal en {platform}" />
 					{/if}
 					{#if platform !== 'custom'}
-						<p class="text-[11px] text-muted-foreground">Channel ID se toma automáticamente del OAuth: <span class="font-mono">{resolvedChannelId() || '—'}</span></p>
+						<p class="text-[11px] text-muted-foreground">
+							{#if connectedForPlatform.length > 0}
+								Channel ID vinculado: <span class="font-mono">{resolvedChannelId() || '—'}</span>
+							{:else}
+								Cuenta: <span class="font-mono">{resolvedChannelId() || 'Sin vincular (puedes escribir tu canal)'}</span>
+							{/if}
+						</p>
 					{/if}
 				</div>
 			</div>
