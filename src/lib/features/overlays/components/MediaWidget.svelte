@@ -8,7 +8,7 @@
 		icon: ImageIcon,
 		defaults: {
 			width: 300, height: 300,
-			config: { url: '', fit: 'cover' },
+			config: { url: '', fit: 'cover', muted: false, loop: true, volume: 100 },
 			style: { background: 'transparent', accent: '#9147ff', border_radius: 0, glow: false, duration_ms: 0, animation: 'fade_in', font_size: 0, text_color: '#ffffff', opacity: 100 }
 		},
 		style: { accent: true, borderRadius: true, glow: true },
@@ -30,12 +30,48 @@
 	let { element }: { element: OverlayElement } = $props();
 
 	const url     = $derived((element.config?.url as string) ?? '');
-	const isVideo = $derived(url.match(/\.(mp4|webm|mov)$/i));
+	const isVideo = $derived(checkIsVideo(url));
 	const radius  = $derived(element.style.border_radius ?? 0);
 	const opacity = $derived((element.style.opacity ?? 100) / 100);
 	const glow    = $derived(element.style.glow ?? false);
 	const accent  = $derived(element.style.accent ?? '#9147ff');
-	const fit     = $derived(element.config?.fit ?? 'cover');
+	const fit     = $derived((element.config?.fit as string) ?? 'cover');
+	const loop    = $derived((element.config?.loop as boolean | undefined) ?? true);
+	const muted   = $derived((element.config?.muted as boolean | undefined) ?? false);
+	const volume  = $derived(((element.config?.volume as number | undefined) ?? 100) / 100);
+
+	let videoEl   = $state<HTMLVideoElement | null>(null);
+
+	function checkIsVideo(src: string): boolean {
+		if (!src) return false;
+		if (src.startsWith('data:video/')) return true;
+		try {
+			const pathname = new URL(src, 'http://localhost').pathname;
+			return /\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(pathname);
+		} catch {
+			return /\.(mp4|webm|mov|m4v|ogg|ogv)(\?|#|$)/i.test(src);
+		}
+	}
+
+	$effect(() => {
+		if (videoEl && url && isVideo) {
+			videoEl.defaultMuted = muted;
+			videoEl.muted = muted;
+			videoEl.volume = Math.max(0, Math.min(1, volume));
+			videoEl.loop = loop;
+			const playPromise = videoEl.play();
+			if (playPromise !== undefined) {
+				playPromise.catch((err) => {
+					console.warn('[MediaWidget] Autoplay with audio was blocked by browser policy:', err);
+					// If standard browser blocks autoplay with sound (requires user interaction), fallback to muted so video visually plays
+					if (videoEl && !videoEl.muted) {
+						videoEl.muted = true;
+						videoEl.play().catch((e) => console.error('[MediaWidget] Play fallback failed:', e));
+					}
+				});
+			}
+		}
+	});
 </script>
 
 <div
@@ -52,10 +88,13 @@
 			<span>Media</span>
 		</div>
 	{:else if isVideo}
+		<!-- svelte-ignore a11y_media_has_caption -->
 		<video
+			bind:this={videoEl}
 			src={url}
 			autoplay
-			loop
+			{loop}
+			{muted}
 			playsinline
 			class="media-content"
 			style="object-fit: {fit}; width: 100%; height: 100%;"
@@ -86,7 +125,7 @@
 	.media-content {
 		width: 100%;
 		height: 100%;
-		object-fit: contain;
+		display: block;
 	}
 
 	.placeholder {

@@ -94,12 +94,16 @@
 					title={`${file.filename} · ${fmt(file.size)}`}
 				>
 					{#if file.type === 'video'}
-						<div class="absolute inset-0 flex items-center justify-center bg-black/60">
+						<div class="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none z-10">
 							<Film class="w-4 h-4 text-white/70" />
 						</div>
+						<!-- svelte-ignore a11y_media_has_caption -->
 						<video
 							src={file.url}
+							autoplay
+							loop
 							muted
+							playsinline
 							class="w-full h-full object-cover opacity-60"
 							style="pointer-events:none;"
 						></video>
