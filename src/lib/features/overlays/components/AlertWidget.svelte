@@ -62,6 +62,7 @@
 
 	const eventLabel = $derived(
 		(element.trigger?.event ?? '')
+			.replace('channel.channel_points_custom_reward_redemption.add', 'Puntos de Canal')
 			.replace('channel.subscription.gift', 'Sub Gifteada')
 			.replace('channel.subscribe', 'Suscripción')
 			.replace('channel.follow', 'Nuevo Seguidor')

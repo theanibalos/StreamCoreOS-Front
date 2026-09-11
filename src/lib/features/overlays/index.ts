@@ -99,6 +99,13 @@ export const PREVIEW_VARS: Record<string, Record<string, string>> = {
 	'channel.subscription.gift': { user_name: 'GiftKing', total: '5', tier: '1000' },
 	'channel.cheer': { user_name: 'BitsMaster', bits: '1000' },
 	'channel.raid': { user_name: 'FriendStream', viewers: '247' },
+	'channel.channel_points_custom_reward_redemption.add': {
+		user_name: 'ViewerPuntos',
+		display_name: 'ViewerPuntos',
+		reward_name: 'Hidratación',
+		cost: '250',
+		user_input: '¡Bebe agua!'
+	},
 	'youtube.superchat': { user_name: 'AlexYT', display_amount: '$10.00', message: '¡Gran directo! Saludos desde México 🔥' },
 	'youtube.supersticker': { user_name: 'SuperFan', display_amount: '$5.00' },
 	'youtube.member': { user_name: 'SocioVIP', message: '¡Nuevo miembro del canal!' },
@@ -111,5 +118,8 @@ export const PREVIEW_STAT_VALUES: Record<string, string> = {
 	'stream.viewer_count': '1247',
 	'followers.total': '8340',
 	'bits.total': '15420',
-	'stream.online': 'true'
+	'stream.online': 'true',
+	'redemptions.latest_name': 'ViewerPuntos',
+	'redemptions.latest_reward': 'Hidratación',
+	'redemptions.latest_cost': '250'
 };

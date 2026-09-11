@@ -41,8 +41,8 @@
 		alerts: {
 			title: '⚡ Alertas & Super Chats',
 			badge: 'Alertas',
-			desc: 'Especializado en capturar Super Chats de YouTube, suscripciones de Twitch, bits y donaciones con efectos.',
-			defaultIdea: 'Un pop-up de alerta animado para Super Chats de YouTube y Bits de Twitch con confeti y sonido.'
+			desc: 'Especializado en capturar Super Chats de YouTube, suscripciones de Twitch, bits, canjes de puntos de canal y donaciones con efectos.',
+			defaultIdea: 'Un pop-up de alerta animado para Super Chats de YouTube, Bits y Canjes de Puntos de Twitch con confeti y sonido.'
 		},
 		stats: {
 			title: '📊 HUD de Estadísticas & Barra de Metas',
@@ -78,10 +78,12 @@ function handleStreamUpdate(data) {
   // stats['subscribers.latest_name'] -> Último sub
   // stats['donations.latest_name'] -> Último donante
   // stats['donations.latest_amount'] -> Último monto
+  // stats['redemptions.latest_name'] -> Último canje de puntos: usuario
+  // stats['redemptions.latest_reward'] -> Último canje de puntos: recompensa
 
   // 2. ACTIVE ALERTS (Array de eventos activos en vivo):
-  // Cada alerta: { elementId, type, vars: { user_name, display_amount, message, bits, tier, viewers }, expiresAt }
-  // Tipos: 'youtube.superchat', 'youtube.supersticker', 'youtube.member', 'channel.follow', 'channel.subscribe', 'channel.cheer', 'channel.raid'
+  // Cada alerta: { elementId, type, vars: { user_name, display_amount, message, bits, tier, viewers, reward_name, cost, user_input }, expiresAt }
+  // Tipos: 'youtube.superchat', 'youtube.supersticker', 'youtube.member', 'channel.follow', 'channel.subscribe', 'channel.cheer', 'channel.raid', 'channel.channel_points_custom_reward_redemption.add'
 
   // 3. CHAT MESSAGES (Diccionario de mensajes en tiempo real):
   // Mensaje canónico:

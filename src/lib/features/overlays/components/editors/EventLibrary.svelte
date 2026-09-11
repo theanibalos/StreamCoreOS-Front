@@ -438,6 +438,119 @@ window.addEventListener('streamupdate', (e) => {
 }`
 		},
 
+		twitch_channel_points: {
+			title: 'Twitch: Canjes de Puntos de Canal (Redemptions)',
+			category: 'alerts',
+			platform: 'twitch',
+			desc: 'Detecta canjes de puntos de canal, extrayendo usuario, recompensa, puntos consumidos y texto del espectador.',
+			js: `function checkRedemptions(alerts) {
+  const box = document.getElementById('redemption-card');
+  if (!box) return;
+
+  // Filtrar eventos de canje de puntos de canal
+  const redemption = alerts.find(a =>
+    a.type === 'channel.channel_points_custom_reward_redemption.add' ||
+    a.type === 'loyalty.reward.redeemed'
+  );
+
+  if (redemption) {
+    const v = redemption.vars || {};
+    document.getElementById('rc-user').innerText = v.user_name || v.display_name || 'Espectador';
+    document.getElementById('rc-reward').innerText = v.reward_name || v.reward_title || 'Recompensa';
+    document.getElementById('rc-cost').innerText = \`\${v.cost || '0'} pts\`;
+
+    const inputEl = document.getElementById('rc-msg');
+    if (v.user_input) {
+      inputEl.innerText = \`"\${v.user_input}"\`;
+      inputEl.style.display = 'block';
+    } else {
+      inputEl.style.display = 'none';
+    }
+    box.classList.add('active');
+  } else {
+    box.classList.remove('active');
+  }
+}
+
+window.addEventListener('streamupdate', (e) => {
+  checkRedemptions(e.detail.activeAlerts || []);
+});`,
+			html: `<div id="redemption-card" class="redemption-box">
+  <div class="rc-header">
+    <span class="rc-badge">CANJE DE PUNTOS</span>
+    <span id="rc-cost" class="rc-cost">250 pts</span>
+  </div>
+  <div class="rc-body">
+    <span id="rc-user" class="rc-user">ViewerPuntos</span>
+    <div id="rc-reward" class="rc-reward">Hidratación</div>
+    <p id="rc-msg" class="rc-comment">¡Bebe agua!</p>
+  </div>
+</div>`,
+			css: `.redemption-box {
+  display: none;
+  background: linear-gradient(135deg, #6441a5, #2a0845);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(100, 65, 165, 0.45);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: system-ui, sans-serif;
+}
+
+.redemption-box.active {
+  display: block;
+  animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.rc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rc-badge {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.rc-cost {
+  font-size: 13px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.rc-user {
+  font-size: 16px;
+  font-weight: 800;
+  display: block;
+  color: #ffffff;
+}
+
+.rc-reward {
+  font-size: 14px;
+  font-weight: 600;
+  color: #facc15;
+  margin-top: 2px;
+}
+
+.rc-comment {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: #e2e8f0;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}`
+		},
+
 		channel_stats_hud: {
 			title: 'HUD de Estadísticas y Pool Dinámico',
 			category: 'stats',

@@ -82,6 +82,9 @@ Contiene los contadores del canal. Es ideal para marcadores y barras de progreso
 | `cheers.latest_bits` | `String` | Cantidad de bits de la última donación. | `stats['cheers.latest_bits']` |
 | `raids.latest_name` | `String` | Canal del último raid recibido. | `stats['raids.latest_name']` |
 | `raids.latest_viewers` | `String` | Espectadores del último raid. | `stats['raids.latest_viewers']` |
+| `redemptions.latest_name` | `String` | Nombre del último usuario que canjeó puntos de canal. | `stats['redemptions.latest_name']` |
+| `redemptions.latest_reward` | `String` | Nombre de la última recompensa de puntos canjeada. | `stats['redemptions.latest_reward']` |
+| `redemptions.latest_cost` | `String` | Costo en puntos del último canje. | `stats['redemptions.latest_cost']` |
 
 > [!NOTE]
 > La variable `stream.viewer_count` se actualiza cada 5 minutos debido a las limitaciones de rate-limit de la API de Twitch. Las demás estadísticas se actualizan instantáneamente en cuanto ocurre el evento. Las variables `*.latest_*` persisten en base de datos, por lo que sobreviven reinicios del backend y recargas del overlay.

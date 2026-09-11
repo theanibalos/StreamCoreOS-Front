@@ -7,7 +7,10 @@ export const STAT_SOURCES = [
 	{ value: 'followers.total',          label: 'Total de Seguidores' },
 	{ value: 'stream.viewer_count',      label: 'Espectadores Actuales' },
 	{ value: 'bits.total',               label: 'Total de Bits' },
-	{ value: 'stream.online',            label: 'Estado Online (true/false)' }
+	{ value: 'stream.online',            label: 'Estado Online (true/false)' },
+	{ value: 'redemptions.latest_name',   label: 'Último Canje: Usuario' },
+	{ value: 'redemptions.latest_reward', label: 'Último Canje: Recompensa' },
+	{ value: 'redemptions.latest_cost',   label: 'Último Canje: Costo (Puntos)' }
 ];
 
 export const ALERT_EVENTS = [
@@ -16,6 +19,7 @@ export const ALERT_EVENTS = [
 	{ value: 'channel.subscription.gift', label: 'Twitch: Sub Regalada' },
 	{ value: 'channel.cheer',             label: 'Twitch: Bits (Cheer)' },
 	{ value: 'channel.raid',              label: 'Twitch: Raid' },
+	{ value: 'channel.channel_points_custom_reward_redemption.add', label: 'Twitch: Canje de Puntos (Redemption)' },
 	{ value: 'youtube.superchat',         label: 'YouTube: Super Chat' },
 	{ value: 'youtube.supersticker',      label: 'YouTube: Super Sticker' },
 	{ value: 'youtube.member',            label: 'YouTube: Nueva Membresía' },
@@ -38,6 +42,12 @@ export const ALERT_EVENT_VARS: Record<string, { name: string; label: string }[]>
 	'channel.subscription.gift': [{ name: 'user_name', label: 'Usuario' }, { name: 'total', label: 'Total' }, { name: 'tier', label: 'Tier' }],
 	'channel.cheer':             [{ name: 'user_name', label: 'Usuario' }, { name: 'bits', label: 'Bits' }],
 	'channel.raid':              [{ name: 'user_name', label: 'Usuario' }, { name: 'viewers', label: 'Espectadores' }],
+	'channel.channel_points_custom_reward_redemption.add': [
+		{ name: 'user_name', label: 'Usuario' },
+		{ name: 'reward_name', label: 'Recompensa' },
+		{ name: 'cost', label: 'Puntos' },
+		{ name: 'user_input', label: 'Mensaje' }
+	],
 	'youtube.superchat':         [{ name: 'user_name', label: 'Donante' }, { name: 'display_amount', label: 'Monto' }, { name: 'message', label: 'Mensaje' }],
 	'youtube.supersticker':      [{ name: 'user_name', label: 'Donante' }, { name: 'display_amount', label: 'Monto' }],
 	'youtube.member':            [{ name: 'user_name', label: 'Miembro' }, { name: 'message', label: 'Detalle' }],

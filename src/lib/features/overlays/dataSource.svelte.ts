@@ -197,10 +197,28 @@ export function createOverlayDataSource(
 		}
 	}
 
-	function ingestAlert(eventType: string, eventData: Record<string, string>) {
+	function ingestAlert(eventType: string, eventData: Record<string, any>) {
 		const elements = getElements();
 		const next: ActiveAlert[] = [];
 		let maxDuration = 0;
+
+		// Normalize variables for templates
+		const vars: Record<string, string> = {};
+		for (const k in eventData) {
+			if (typeof eventData[k] === 'object' && eventData[k] !== null) continue;
+			vars[k] = String(eventData[k] ?? '');
+		}
+
+		if (eventType === 'channel.channel_points_custom_reward_redemption.add' || (eventData as any)?.reward) {
+			const reward = (eventData as any)?.reward;
+			const rewardTitle = typeof reward === 'object' && reward !== null ? (reward.title ?? '') : String(reward ?? '');
+			const rewardCost = typeof reward === 'object' && reward !== null ? String(reward.cost ?? '') : '';
+			if (!vars.reward_name) vars.reward_name = vars.reward_title || rewardTitle;
+			if (!vars.reward_title) vars.reward_title = vars.reward_name;
+			if (!vars.cost && rewardCost) vars.cost = rewardCost;
+			if (!vars.user_name && vars.display_name) vars.user_name = vars.display_name;
+			if (!vars.display_name && vars.user_name) vars.display_name = vars.user_name;
+		}
 
 		for (const el of elements) {
 			if (el.type !== 'alert' || !widgetNeeds(el, 'alerts') || !el.trigger) continue;
@@ -211,7 +229,7 @@ export function createOverlayDataSource(
 				continue;
 			const duration = el.style.duration_ms ?? 5000;
 			maxDuration = Math.max(maxDuration, duration);
-			next.push({ elementId: el.id, type: eventType, vars: eventData, expiresAt: Date.now() + duration });
+			next.push({ elementId: el.id, type: eventType, vars, expiresAt: Date.now() + duration, raw: eventData });
 		}
 
 		// Widgets that need alerts but aren't `alert` elements themselves (e.g. custom_code)
@@ -219,7 +237,7 @@ export function createOverlayDataSource(
 		if (elements.some((el) => el.type !== 'alert' && widgetNeeds(el, 'alerts'))) {
 			const duration = 8000;
 			maxDuration = Math.max(maxDuration, duration);
-			next.push({ elementId: BROADCAST_ELEMENT_ID, type: eventType, vars: eventData, expiresAt: Date.now() + duration });
+			next.push({ elementId: BROADCAST_ELEMENT_ID, type: eventType, vars, expiresAt: Date.now() + duration, raw: eventData });
 		}
 
 		if (next.length) {
