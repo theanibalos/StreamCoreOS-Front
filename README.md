@@ -1,6 +1,6 @@
 # StreamCoreOS — Frontend
 
-Dashboard and overlay builder for [StreamCoreOS](https://github.com/theanibalos/StreamCoreOS). Built with SvelteKit, Tailwind CSS v4, and TypeScript.
+Dashboard and local overlay feed controls for [StreamCoreOS](https://github.com/theanibalos/StreamCoreOS). Built with SvelteKit, Tailwind CSS v4, and TypeScript.
 
 **License:** AGPL-3.0
 
@@ -66,7 +66,7 @@ src/
 │   │   ├── commands/              # Command manager
 │   │   ├── dashboard/             # Stream status, manual actions
 │   │   ├── moderation/            # Rules manager, mod log
-│   │   ├── overlays/              # Builder, widgets, live renderer
+│   │   ├── overlays/              # Feed token and test controls
 │   │   ├── subscribers/           # Leaderboards
 │   │   ├── system/                # Health graph, system status
 │   │   ├── timers/                # Timer manager
@@ -75,9 +75,8 @@ src/
 │   └── components/ui/             # shadcn-style primitives
 └── routes/
     ├── +layout.svelte             # Auth shell + sidebar
-    ├── overlays/
-    │   ├── builder/[id]/          # Overlay builder (drag-and-drop, meta-driven widgets)
-    │   └── live/[id]/             # Live overlay renderer (OBS browser source)
+    ├── overlays/                  # Feed URL, manifest, event tests
+    │   └── tts/                   # Built-in TTS browser source
     └── ...                        # One route per feature
 ```
 
@@ -85,19 +84,24 @@ src/
 
 ## OBS Integration
 
-Overlay live URLs follow the pattern:
+Build an HTML overlay locally, then open it as an OBS Browser Source. On the
+dashboard's **Overlays** page, copy the feed URL and manifest. In your local
+JavaScript, subscribe to the feed URL:
 
-```
-http://your-domain/overlays/live/{overlay-id}
+```js
+const feed = new EventSource('http://localhost:8000/api/overlays/feed?token=YOUR_TOKEN');
+feed.onmessage = ({ data }) => {
+  const event = JSON.parse(data);
+  if (event.type === 'event.follow') console.log(event.data.user);
+};
 ```
 
-Add as a **Browser Source** in OBS. The page has a transparent background and connects to the backend via SSE for real-time updates (alerts, stats, chat).
-
-Append `?preview` to test the overlay without an active stream:
-
-```
-http://localhost:5173/overlays/live/{overlay-id}?preview
-```
+Use the feed URL shown in the dashboard if its origin differs from localhost.
+The first event is `feed.snapshot`; subsequent events include `stat.update`,
+`chat.message`, and `event.*`. See [the feed contract](OVERLAY_FEED_CONTRACT.md)
+for payloads and the manifest endpoint for the current list of types. The token
+grants read-only access to the feed; keep it in your local files and rotate it
+from the dashboard if needed.
 
 ---
 

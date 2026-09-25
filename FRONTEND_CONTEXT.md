@@ -42,8 +42,7 @@ src/
 │   │   ├── chat/
 │   │   ├── dashboard/
 │   │   ├── moderation/
-│   │   ├── overlays/            # Meta-driven widgets: WIDGET_REGISTRY {component, meta}
-│   │   │   └── components/      Widget components (export `meta`) + builder/ + editors/
+│   │   ├── overlays/            # Feed token and test controls
 │   │   ├── subscribers/
 │   │   ├── system/
 │   │   ├── timers/
@@ -65,11 +64,9 @@ src/
     ├── viewers/+page.svelte
     └── overlays/
         ├── +layout.svelte        # empty layout for all /overlays/* except /overlays
-        ├── +page.svelte          # overlay index
+        ├── +page.svelte          # local feed access and instructions
         ├── alerts/+page.svelte
-        ├── tts/+page.svelte
-        ├── builder/[id]/+page.svelte # Thin orchestrator for builder components
-        └── live/[id]/+page.svelte    # Thin orchestrator for live widgets
+        └── tts/+page.svelte
 ```
 
 ---
@@ -140,62 +137,11 @@ Known quirk: `SubscribersLeaderboardResponse` does not use the generic `ApiRespo
 
 ---
 
-## Overlay System — `src/lib/features/overlays/types.ts`
+## Local overlay feed
 
-### `ElementStyle`
-
-```ts
-type ElementStyle = {
-  background: string;    // hex with alpha e.g. '#000000cc'
-  accent: string;        // hex
-  border_radius: number; // 0–60 px
-  glow: boolean;
-  duration_ms: number;   // alerts only
-  animation: 'scale_in' | 'fade_in' | 'slide_up' | 'slide_down';
-  font_size: number;     // 10–120 px
-  text_color: string;    // hex
-  opacity: number;       // 0–100 (applied as opacity/100 on the root element)
-};
-```
-
-### `ChatMessage` / `ChatFragment`
-
-```ts
-type ChatFragment = {
-  type: string;            // 'text' | 'emote'
-  text: string;
-  emote_id?: string | null;
-  emote_animated?: boolean; // true → use /animated/ CDN path, false → /static/
-};
-
-type ChatMessage = {
-  display_name: string;
-  message: string;         // full text fallback
-  timestamp: number;
-  color?: string;          // Twitch user color e.g. '#FF4500'
-  badges?: Record<string, string>; // set_id → version e.g. { moderator: '1' }
-  fragments?: ChatFragment[];
-};
-```
-
-### Widget rendering rule for fragments
-
-Always iterate with index key — never content key — to avoid Svelte duplicate-key errors when the same emote appears more than once:
-
-```svelte
-{#each frags as frag, i (i)}
-  {#if frag.type === 'emote' && frag.emote_id}
-    {@const fmt = frag.emote_animated ? 'animated' : 'static'}
-    <img src="https://static-cdn.jtvnw.net/emoticons/v2/{frag.emote_id}/{fmt}/dark/1.0" ... />
-  {:else}
-    {frag.text}
-  {/if}
-{/each}
-```
-
-### Badge images
-
-Fetched from `GET /chat/badges` on widget `onMount`. Returns `{ set_id: { version: image_url_1x } }`. Cached 1 hour server-side. Falls back silently when no Twitch session is active.
+`/overlays` exposes the feed URL, token rotation, event tests, and an AI-ready
+manual. External HTML pages use `EventSource` against `/api/overlays/feed`.
+See `OVERLAY_FEED_CONTRACT.md` and `guia_construccion_overlays.md`.
 
 ---
 
@@ -240,4 +186,3 @@ Fetched from `GET /chat/badges` on widget `onMount`. Returns `{ set_id: { versio
 | Chat messages not appearing despite SSE connected | `/chat/stream` sends payload directly, no wrapper | `connectChat()` normalises both formats |
 | `EventSource` CORS errors | absolute URL bypasses Vite proxy | `client.ts` uses `BASE = ''` |
 | Some SSE frames carry no payload | keepalive/connect frames | `getBadges` accepts `null \| undefined`, template uses `(msg.data ?? {})` |
-| Same emote twice in a message breaks widget | duplicate key in `{#each}` | always use index key `(i)` for fragment loops |

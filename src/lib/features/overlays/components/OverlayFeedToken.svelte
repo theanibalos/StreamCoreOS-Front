@@ -16,6 +16,10 @@
 		{ type: 'event.subscription', label: 'Sub' },
 		{ type: 'event.raid', label: 'Raid' },
 		{ type: 'event.cheer', label: 'Cheer' },
+		{ type: 'event.redemption', label: 'Canje' },
+		{ type: 'event.superchat', label: 'Super Chat' },
+		{ type: 'event.supersticker', label: 'Super Sticker' },
+		{ type: 'event.member', label: 'Miembro' },
 		{ type: 'chat.message', label: 'Chat' }
 	];
 
@@ -23,13 +27,16 @@
 	let regenerating = $state(false);
 	let confirmingRegen = $state(false);
 	let testing = $state<string | null>(null);
+	let testRewardName = $state('');
 	let error = $state<string | null>(null);
 	let data = $state<TokenData | null>(null);
 	let copied = $state<string | null>(null);
+	let copyingManual = $state(false);
+	let backendOrigin = $state('');
 
 	const origin = typeof window !== 'undefined' ? window.location.origin : '';
-	const feedUrl = $derived(data ? origin + data.feed_url : '');
-	const manifestUrl = $derived(data ? origin + data.manifest_url : '');
+	const feedUrl = $derived(data ? backendOrigin.replace(/\/$/, '') + data.feed_url : '');
+	const manifestUrl = $derived(data ? backendOrigin.replace(/\/$/, '') + data.manifest_url : '');
 
 	async function load() {
 		loading = true;
@@ -73,7 +80,10 @@
 	async function sendTest(type: string) {
 		testing = type;
 		try {
-			const res = await post<{ success: boolean; error?: string | null }>('/overlays/test', { type });
+			const body = type === 'event.redemption' && testRewardName.trim()
+				? { type, reward_name: testRewardName.trim() }
+				: { type };
+			const res = await post<{ success: boolean; error?: string | null }>('/overlays/test', body);
 			if (res.success) {
 				show('Evento de prueba enviado al feed', 'success');
 			} else {
@@ -99,7 +109,29 @@
 		}
 	}
 
-	onMount(load);
+	async function copyManual() {
+		if (!data) return;
+		copyingManual = true;
+		try {
+			const response = await get<{ success: boolean; data: unknown; error?: string }>('/overlays/manifest');
+			if (!response.success || !response.data) throw new Error(response.error ?? 'No se pudo cargar el manifest');
+			const endpoint = new URL(data.feed_url, backendOrigin);
+			endpoint.searchParams.set('token', 'PEGA_AQUI_TU_TOKEN');
+			const manual = `Construye una página HTML/CSS/JavaScript independiente para usarla como Browser Source de OBS. La página debe tener fondo transparente y conectarse con EventSource a ${endpoint.toString()}. Deja PEGA_AQUI_TU_TOKEN como marcador para que yo lo reemplace localmente; no uses cookies ni el token de sesión del panel. Cada mensaje SSE llega en event.data como JSON con {type, v, ts, data}. Procesa feed.snapshot para el estado inicial, maneja los eventos necesarios, ignora tipos desconocidos y deja que EventSource reconecte automáticamente. Para chat.message y feed.snapshot.recent_chat, dibuja data.badges como imágenes usando badge.url, y data.fragments en orden: texto como nodos de texto y emotes como imágenes usando fragment.url. Si una insignia no tiene URL, muestra su nombre como etiqueta; si faltan fragments, usa data.text. Nunca insertes texto de espectadores con innerHTML. Toda la presentación, animaciones y duración de alertas se resuelven en la página local. No dependas de rutas o componentes de StreamCoreOS para renderizar. Entrega el HTML completo y explica dónde pegar el token y cómo abrirlo en OBS.\n\nContrato actual del servidor:\n${JSON.stringify(response.data, null, 2)}`;
+			await copy(manual, 'manual');
+		} catch (e) {
+			show(e instanceof Error ? e.message : String(e), 'error');
+		} finally {
+			copyingManual = false;
+		}
+	}
+
+	onMount(() => {
+		backendOrigin = import.meta.env.DEV
+			? `${window.location.protocol}//${window.location.hostname}:8000`
+			: origin;
+		load();
+	});
 </script>
 
 <Card class="w-full">
@@ -108,7 +140,7 @@
 			<Radio class="w-4 h-4" /> Overlay Feed
 		</CardTitle>
 		<CardDescription>
-			Un solo link con tu token que pegás en OBS. El overlay consume tus eventos (follows,
+			Un solo feed con tu token para usar desde tus archivos locales. El overlay consume tus eventos (follows,
 			subs, chat…) en vivo. Podés construirlo a mano o pedírselo a una IA con el manifest.
 		</CardDescription>
 	</CardHeader>
@@ -121,10 +153,15 @@
 				<Button variant="outline" size="sm" onclick={load}>Reintentar</Button>
 			</div>
 		{:else if data}
+			<div class="flex flex-col gap-2">
+				<Label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dirección del backend accesible desde OBS</Label>
+				<Input bind:value={backendOrigin} placeholder="http://localhost:8000" class="font-mono text-xs" />
+				<p class="text-xs text-muted-foreground">Si OBS está en otro equipo, usá la IP o dominio de StreamCoreOS en lugar de localhost.</p>
+			</div>
 			<!-- Feed URL -->
 			<div class="flex flex-col gap-2">
 				<Label class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-					Link para OBS (browser source)
+					URL del feed para tu código local
 				</Label>
 				<div class="flex gap-2">
 					<Input value={feedUrl} readonly class="font-mono text-xs" />
@@ -153,8 +190,11 @@
 						{/if}
 					</Button>
 				</div>
+				<Button variant="secondary" size="sm" onclick={copyManual} disabled={copyingManual} class="self-start">
+					<BookOpen class="w-4 h-4 mr-1.5" /> {copyingManual ? 'Preparando manual…' : 'Copiar manual para IA'}
+				</Button>
 				<p class="text-xs text-muted-foreground">
-					Pegale este link a ChatGPT/Claude y pedile un overlay: describe todos los eventos y campos disponibles.
+					El manual incluye el contrato actual y un token de ejemplo. Pegalo en tu IA para generar una página local; después reemplazá el token en el archivo resultante.
 				</p>
 			</div>
 
@@ -176,6 +216,7 @@
 						</Button>
 					{/each}
 				</div>
+				<Input bind:value={testRewardName} placeholder="Nombre de recompensa para probar un canje (ej.: tlabaja)" class="max-w-md text-xs" />
 				<p class="text-xs text-muted-foreground">
 					Con tu overlay abierto en OBS (o en una pestaña), tocá un botón y vas a verlo reaccionar en vivo.
 				</p>

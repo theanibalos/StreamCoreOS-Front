@@ -20,11 +20,9 @@
 
 	let { runtime = null, onStatusChange }: { runtime?: StreamRuntimeStatusData | null; onStatusChange?: () => void } = $props();
 
-	type OverlayItem = { id: number; name: string; created_at?: string; updated_at?: string };
 
 	let outputs = $state<StreamOutputData[]>([]);
 	let connections = $state<PlatformConnectionData[]>([]);
-	let overlays = $state<OverlayItem[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	let actionBusy = $state(false);
@@ -40,7 +38,6 @@
 	let channelId = $state('');
 	let rtmpUrl = $state('');
 	let streamKey = $state('');
-	let overlayId = $state('');
 	let enabled = $state(true);
 
 	const connectedForPlatform = $derived(connections.filter((c) => c.platform === platform && c.enabled));
@@ -58,14 +55,12 @@
 		loading = true;
 		error = null;
 		try {
-			const [outputsRes, connectionsRes, overlaysRes] = await Promise.all([
+			const [outputsRes, connectionsRes] = await Promise.all([
 				get<StreamOutputsResponse>('/stream-outputs'),
-				get<PlatformConnectionsResponse>('/platforms/connections'),
-				get<{ success: boolean; data: OverlayItem[]; error?: string }>('/overlays')
+				get<PlatformConnectionsResponse>('/platforms/connections')
 			]);
 			outputs = outputsRes.success ? (outputsRes.data ?? []) : [];
 			connections = connectionsRes.success ? (connectionsRes.data ?? []) : [];
-			overlays = overlaysRes.success ? (overlaysRes.data ?? []) : [];
 			if (!outputsRes.success) error = outputsRes.error ?? 'No se pudieron cargar los destinos.';
 			if (!connectionsRes.success) error = connectionsRes.error ?? 'No se pudieron cargar las conexiones.';
 		} catch (e) {
@@ -84,7 +79,6 @@
 		channelId = '';
 		rtmpUrl = defaultRtmp.youtube;
 		streamKey = '';
-		overlayId = '';
 		enabled = true;
 		formError = null;
 	}
@@ -103,7 +97,6 @@
 		channelId = output.channel_id;
 		rtmpUrl = output.rtmp_url ?? defaultRtmp[output.platform] ?? '';
 		streamKey = '';
-		overlayId = output.overlay_id ? String(output.overlay_id) : '';
 		enabled = output.enabled;
 		formError = null;
 		showForm = true;
@@ -135,13 +128,11 @@
 	}
 
 	function buildPayload() {
-		const numOverlay = overlayId ? Number(overlayId) : null;
 		const payload: Record<string, unknown> = {
 			name: String(name || '').trim(),
 			platform,
 			channel_id: resolvedChannelId(),
 			enabled,
-			overlay_id: numOverlay && !isNaN(numOverlay) ? numOverlay : null,
 			rtmp_url: String(rtmpUrl || '').trim() || null
 		};
 		if (streamKey && String(streamKey).trim()) payload.stream_key_secret = String(streamKey).trim();
@@ -431,21 +422,12 @@
 				</div>
 			</div>
 
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-				<div class="flex flex-col gap-2">
-					<label for="output-overlay" class="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Overlay para este Destino</label>
-					<select id="output-overlay" bind:value={overlayId} class="h-9 rounded-md border bg-background px-3 text-sm">
-						<option value="">Sin Overlay (Directo / Passthrough)</option>
-						{#each overlays as ov}
-							<option value={String(ov.id)}>{ov.name} (ID: {ov.id})</option>
-						{/each}
-					</select>
-				</div>
+			<div class="flex items-center justify-between gap-4">
 				<div class="flex items-center gap-3 h-9">
 					<Switch bind:checked={enabled} />
 					<span class="text-sm font-medium">Destino activo</span>
 				</div>
-				<Button onclick={save} disabled={saving} class="md:justify-self-end">
+				<Button onclick={save} disabled={saving}>
 					<Save class="w-4 h-4 mr-1.5" /> {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear destino'}
 				</Button>
 			</div>
@@ -466,7 +448,7 @@
 		{:else}
 			<div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
 				{#each outputs as output (output.id)}
-					<StreamOutputCard output={output} {overlays} onEdit={startEdit} onDelete={remove} onToggle={toggleOutput} onStart={(o) => markStatus(o, 'live')} onStop={(o) => markStatus(o, 'stopped')} />
+					<StreamOutputCard output={output} onEdit={startEdit} onDelete={remove} onToggle={toggleOutput} onStart={(o) => markStatus(o, 'live')} onStop={(o) => markStatus(o, 'stopped')} />
 				{/each}
 			</div>
 		{/if}

@@ -20,7 +20,6 @@ export interface StreamOutputData {
 	platform: string;
 	channel_id: string;
 	enabled: boolean;
-	overlay_id: number | null;
 	rtmp_url: string | null;
 	stream_key_configured: boolean;
 	stream_key_preview: string | null;
@@ -35,7 +34,6 @@ export interface CreateStreamOutputRequest {
 	platform: string;
 	channel_id: string;
 	enabled?: boolean;
-	overlay_id?: number | null;
 	rtmp_url?: string | null;
 	stream_key_secret?: string | null;
 	settings?: Record<string, unknown>;
@@ -46,7 +44,6 @@ export interface UpdateStreamOutputRequest {
 	platform?: string;
 	channel_id?: string;
 	enabled?: boolean;
-	overlay_id?: number | null;
 	rtmp_url?: string | null;
 	stream_key_secret?: string | null;
 	status?: string;

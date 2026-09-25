@@ -8,7 +8,6 @@
 
 	let {
 		output,
-		overlays = [],
 		onEdit,
 		onDelete,
 		onToggle,
@@ -16,7 +15,6 @@
 		onStop
 	}: {
 		output: StreamOutputData;
-		overlays?: Array<{ id: number; name: string }>;
 		onEdit?: (output: StreamOutputData) => void;
 		onDelete?: (output: StreamOutputData) => void;
 		onToggle?: (output: StreamOutputData, enabled: boolean) => void;
@@ -24,9 +22,6 @@
 		onStop?: (output: StreamOutputData) => void;
 	} = $props();
 
-	const overlayName = $derived(
-		output.overlay_id ? (overlays.find((o) => o.id === output.overlay_id)?.name ?? `ID: ${output.overlay_id}`) : 'Sin Overlay'
-	);
 
 	const platformColors: Record<string, string> = {
 		twitch: 'border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-300',
@@ -75,14 +70,10 @@
 			</div>
 		</div>
 
-		<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
 			<div class="rounded-md bg-muted/40 p-2">
 				<p class="text-muted-foreground uppercase font-black text-[10px]">Canal automático</p>
 				<p class="font-mono truncate">{output.channel_id || '—'}</p>
-			</div>
-			<div class="rounded-md bg-muted/40 p-2">
-				<p class="text-muted-foreground uppercase font-black text-[10px]">Overlay</p>
-				<p class="truncate font-medium">{overlayName}</p>
 			</div>
 			<div class="rounded-md {output.stream_key_configured ? 'bg-muted/40' : 'bg-amber-500/10 border border-amber-500/30'} p-2">
 				<p class="text-muted-foreground uppercase font-black text-[10px] flex items-center gap-1"><KeyRound class="w-3 h-3 {output.stream_key_configured ? '' : 'text-amber-500'}" /> Key</p>
