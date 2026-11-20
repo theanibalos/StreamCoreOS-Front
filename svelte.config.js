@@ -4,7 +4,9 @@ import adapter from '@sveltejs/adapter-static';
 const config = {
 	kit: {
 		adapter: adapter({
-			fallback: 'index.html'
+			fallback: 'index.html',
+			pages: process.env.STREAMCOREOS_DESKTOP_FRONTEND_DIR || 'build',
+			assets: process.env.STREAMCOREOS_DESKTOP_FRONTEND_DIR || 'build'
 		})
 	},
 	vitePlugin: {

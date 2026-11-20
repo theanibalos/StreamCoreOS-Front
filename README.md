@@ -39,6 +39,10 @@ pnpm preview   # preview the production build locally
 
 Outputs a static site to `build/`. Served by nginx in production (see `Dockerfile`).
 
+The desktop launcher builds this same frontend with `VITE_STREAMCOREOS_DESKTOP=true`,
+which hides Emission and disables its route. `STREAMCOREOS_DESKTOP_FRONTEND_DIR`
+selects its separate output directory. Normal web builds keep Emission enabled.
+
 ---
 
 ## Deploy

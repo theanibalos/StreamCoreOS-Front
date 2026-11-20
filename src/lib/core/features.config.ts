@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import { EMISSION_ENABLED } from './runtime.config';
 import {
 	LayoutDashboard,
 	Users,
@@ -29,4 +30,4 @@ export const FEATURES: { id: string; href: string; label: string; icon: Componen
 	{ id: 'system', href: '/system', label: 'Sistema', icon: Activity },
 	{ id: 'ai', href: '/ai', label: 'AI', icon: Sparkles },
 	{ id: 'settings', href: '/settings', label: 'Ajustes', icon: KeyRound }
-];
+].filter((feature) => feature.id !== 'emission' || EMISSION_ENABLED);

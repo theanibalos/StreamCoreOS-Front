@@ -8,6 +8,8 @@ export interface ModRuleData {
 	duration_s: number | null;
 	enabled: boolean;
 	exempt_roles: string[]; // mod | vip | sub | regular
+	target_users: string[]; // specific usernames targeted by this rule
+	exempt_users: string[]; // specific usernames exempt from this rule
 }
 
 export interface CreateModRuleRequest {
@@ -16,6 +18,8 @@ export interface CreateModRuleRequest {
 	action?: string;
 	duration_s?: number | null;
 	exempt_roles?: string[];
+	target_users?: string[];
+	exempt_users?: string[];
 }
 
 export interface UpdateModRuleRequest {
@@ -24,6 +28,8 @@ export interface UpdateModRuleRequest {
 	duration_s?: number | null;
 	enabled?: boolean | null;
 	exempt_roles?: string[] | null;
+	target_users?: string[] | null;
+	exempt_users?: string[] | null;
 }
 
 export interface ModLogEntry {
